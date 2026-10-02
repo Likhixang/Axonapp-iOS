@@ -1,6 +1,6 @@
 # Axonhub App iOS
 
-[English](README.md) | **简体中文**
+[English](README.md) | **简体中文** | [繁體中文](README.zh-TW.md) | [한국어](README.ko.md) | [日本語](README.ja.md)
 
 面向 iPhone 和 iPad 的原生 [AxonHub](https://github.com/looplj/axonhub) 管理应用。在手机上查看网关用量、管理渠道与模型、配置访问权限。
 
@@ -12,7 +12,7 @@
   <img src="docs/screenshots/zh-Hans-preview.png" width="900" alt="仪表盘、渠道与模型">
 </p>
 
-## 功能亮点
+## 核心功能
 
 - **仪表盘** — 请求、词元、费用、成功率、每日趋势与渠道性能。
 - **渠道与模型** — 配置供应商、获取上游模型、测试连通性、管理模型路由。
@@ -23,7 +23,7 @@
 - **多语言** — 简体中文、繁體中文、English、日本語、한국어。
 - **安全直连** — 凭据保存在本机 Keychain，默认使用 HTTPS，无中转服务或分析 SDK。
 
-## 安装
+## 下载与安装
 
 需要 **iOS / iPadOS 16.0 或更高版本**。
 

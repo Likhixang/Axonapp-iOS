@@ -1,6 +1,6 @@
 # Axonhub App iOS
 
-**English** | [简体中文](README.zh-CN.md)
+**English** | [简体中文](README.zh-CN.md) | [繁體中文](README.zh-TW.md) | [한국어](README.ko.md) | [日本語](README.ja.md)
 
 A native [AxonHub](https://github.com/looplj/axonhub) management app for iPhone and iPad. Check gateway usage, manage channels and models, and control access from your device.
 
