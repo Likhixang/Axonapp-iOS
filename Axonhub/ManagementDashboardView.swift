@@ -105,7 +105,7 @@ struct ManagementDashboardView: View {
                 .chartYAxis {
                     AxisMarks { value in
                         AxisGridLine(); AxisTick()
-                        AxisValueLabel { if let number = value.as(Double.self) { Text(trendMetric == "tokens" ? DisplayFormat.compact(number) : DisplayFormat.number(number)) } }
+                        AxisValueLabel { if let number = value.as(Double.self) { Text(trendMetric == "tokens" ? DisplayFormat.compact(number) : trendMetric == "cost" ? DisplayFormat.money(number) : DisplayFormat.number(number)) } }
                     }
                 }
                 .frame(height: 210).accessibilityLabel("每日真实用量趋势")
@@ -208,8 +208,7 @@ enum ManagementFormat {
     }
     static func cost(_ value: JSON) -> String {
         guard !value.isNull else { return "—" }
-        let amount = Double(value.string) ?? value.number
-        guard amount.isFinite else { return "—" }
-        return amount.formatted(.currency(code: "USD").precision(.fractionLength(0...2)))
+        if case .string(let text) = value { return DisplayFormat.money(text) ?? "—" }
+        return DisplayFormat.money(value.number)
     }
 }

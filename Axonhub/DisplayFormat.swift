@@ -15,6 +15,23 @@ enum DisplayFormat {
         return value.formatted(.number.locale(locale).precision(.fractionLength(0...2)))
     }
 
+    static func money(_ value: Double, locale: Locale = .autoupdatingCurrent) -> String {
+        guard value.isFinite else { return "—" }
+        return value.formatted(.number.locale(locale).precision(.fractionLength(1))) + " USD"
+    }
+
+    static func money(_ text: String, locale: Locale = .autoupdatingCurrent) -> String? {
+        guard text.range(of: #"^[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?$"#, options: .regularExpression) != nil,
+              let value = Decimal(string: text, locale: Locale(identifier: "en_US_POSIX")),
+              !value.isNaN else { return nil }
+        return value.formatted(.number.locale(locale).precision(.fractionLength(1))) + " USD"
+    }
+
+    static func isMoneyQuantity(_ key: String) -> Bool {
+        ["cost", "totalcost", "price", "priceperunit", "subtotal", "flatfee", "usageperunit",
+         "cacheread", "cachewrite"].contains(key.lowercased())
+    }
+
     static func isDecimalQuantity(_ key: String) -> Bool {
         let key = key.lowercased()
         return ["cost", "totalcost", "price", "priceperunit", "subtotal", "flatfee", "usageperunit",

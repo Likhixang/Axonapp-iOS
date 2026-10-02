@@ -16,7 +16,7 @@ class EditorRegression(unittest.TestCase):
         self.assertNotIn('authorizeSecrets', source)
         self.assertNotIn('.confirmationDialog', source)
         self.assertIn('await loadSecrets()', source)
-        self.assertIn('channel.credentials["apiKeys"]', source)
+        self.assertIn('channel.editableKeys', source)
         # Clear the editor only when its entire NavigationStack closes, not when
         # pushing a credential/settings field onto that stack.
         self.assertRegex(source, r'\n        \}\n        \.onDisappear \{ clearSecrets\(\) \}')
@@ -32,13 +32,15 @@ class EditorRegression(unittest.TestCase):
         native = (ROOT / 'Axonhub/NativeManagement.swift').read_text()
         detail = native.split('struct NativeEntityDetailView: View {')[1].split('struct NativeEntityEditor: View {')[0]
         self.assertNotIn('isPresented: $reveal', detail)
-        self.assertIn('revealSecret()', detail)
+        self.assertIn('read: revealSecret', detail)
         self.assertIn('revealed["id"].string == id', detail)
         legacy = (ROOT / 'Axonhub/AdminCenter.swift').read_text().split('private struct AdminDetailView: View {')[1].split('struct AdminResultTree: View {')[0]
         self.assertNotIn('revealConfirmation', legacy)
-        self.assertIn('revealSecret()', legacy)
-        self.assertIn('.onDisappear', detail)
-        self.assertIn('NativeSecretClipboard.copy(secret)', detail)
+        self.assertIn('read: revealSecret', legacy)
+        controls = (ROOT / 'Axonhub/KeyControls.swift').read_text()
+        self.assertIn('.onDisappear', controls)
+        self.assertIn('NativeSecretClipboard.copy(value)', controls)
+        self.assertIn('generation == ticket', controls)
 
     def test_all_number_displays_use_explicit_precision(self):
         for file in (ROOT / 'Axonhub').glob('*.swift'):
@@ -50,6 +52,29 @@ class EditorRegression(unittest.TestCase):
         scalar = (ROOT / 'Axonhub/NativeSystemSettings.swift').read_text()
         self.assertIn('DisplayFormat.number(number)', scalar)
         self.assertIn('DisplayFormat.isDecimalQuantity(key)', scalar)
+
+    def test_money_uses_one_decimal_and_trailing_usd(self):
+        source = (ROOT / 'Axonhub/DisplayFormat.swift').read_text()
+        self.assertIn('static func money(', source)
+        self.assertIn('fractionLength(1)', source)
+        self.assertIn(' + " USD"', source)
+        scalar = (ROOT / 'Axonhub/NativeSystemSettings.swift').read_text()
+        self.assertIn('DisplayFormat.isMoneyQuantity(key)', scalar)
+
+    def test_keys_use_icon_controls_and_no_warning_copy(self):
+        editor = (ROOT / 'Axonhub/ManagementEditor.swift').read_text()
+        self.assertNotIn('读取现有认证与高级配置', editor)
+        self.assertIn('KeyEditorField(', editor)
+        self.assertIn('if target.kind == .channel { await loadSecrets() }', editor)
+        for file in ['NativeManagement.swift', 'AdminCenter.swift']:
+            source = (ROOT / 'Axonhub' / file).read_text()
+            self.assertNotIn('剪贴板含秘密', source)
+            self.assertNotIn('请注意周围环境', source)
+            self.assertNotIn('显示或复制 API Key', source)
+            self.assertIn('APIKeyValueRow(', source)
+        keys = (ROOT / 'Axonhub/KeysWorkspaceView.swift').read_text()
+        self.assertNotIn('NavigationLink { NativeEntityDetailView', keys)
+        self.assertIn('.navigationDestination(isPresented:', keys)
 
     def test_no_automatic_simulator_action(self):
         screenshots = (ROOT / '.github/workflows/screenshots.yml').read_text()
@@ -75,6 +100,11 @@ func check(_ condition: @autoclosure () throws -> Bool, _ name: String) rethrows
     print("PASS: " + name)
 }
 let locale = Locale(identifier: "en_US_POSIX")
+check(DisplayFormat.money(12.3456, locale: locale) == "12.3 USD", "money one decimal then USD")
+check(DisplayFormat.money(12, locale: locale) == "12.0 USD", "money always one decimal")
+check(DisplayFormat.money("123456789012345.6789", locale: locale)?.replacingOccurrences(of: ",", with: "") == "123456789012345.7 USD", "Decimal money no Double loss")
+check(DisplayFormat.money("12 text", locale: locale) == nil, "invalid money stays invalid")
+check(DisplayFormat.money(.infinity, locale: locale) == "—", "infinite money unknown")
 check(DisplayFormat.number(12.3456, locale: locale) == "12.35", "round to two places")
 check(DisplayFormat.number(12.3, locale: locale) == "12.3", "no unnecessary trailing zero")
 check(DisplayFormat.number(12, locale: locale) == "12", "integer remains integer")
@@ -96,6 +126,22 @@ var draft = ChannelDraft(detail: detail)
 draft.loadSecrets(secret)
 check(draft.secretsLoaded, "read enables auth and advanced configuration")
 check(draft.credentials["apiKeys"].array.count == 2, "official apiKeys array is retained")
+var keyDraft = draft
+keyDraft.setKey("fixture-edited", at: 0)
+keyDraft.appendKey()
+keyDraft.setKey("fixture-added", at: 2)
+keyDraft.removeKey(at: 1)
+check(keyDraft.editableKeys == ["fixture-edited", "fixture-added"], "inline edit add remove keys")
+let keyPayload = try keyDraft.payload()
+check(keyPayload["credentials"]?["apiKeys"].array.map(\.string) == ["fixture-edited", "fixture-added"], "key editor saves correct keys")
+check(keyPayload["settings"] == nil, "key edits leave advanced settings unchanged")
+var newDraft = ChannelDraft()
+newDraft.name = "New"; newDraft.defaultTestModel = "chat"
+newDraft.setKey("fixture-single", at: 0)
+newDraft.appendKey(); newDraft.setKey("fixture-second", at: 1)
+let newPayload = try newDraft.payload()
+check(newPayload["credentials"]?["apiKey"].string == "", "single key does not shadow added keys")
+check(newPayload["credentials"]?["apiKeys"].array.count == 2, "new channel multiple keys")
 check(draft.settings["proxy"]["password"].string == "fixture-password", "protected advanced values loaded")
 try check(draft.payload().isEmpty, "reading alone never changes server credentials or settings")
 var credentials = draft.credentials.object

@@ -73,7 +73,7 @@ struct AdminInvitationView: View {
                     Button(revealed ? "隐藏邀请链接" : "显示邀请链接（持有者可注册）") { revealed.toggle() }
                     if revealed {
                         Text(invitationURL).font(.caption.monospaced()).textSelection(.enabled)
-                        Button("复制邀请链接（剪贴板含秘密）") {
+                        Button("复制邀请链接") {
                             UIPasteboard.general.setItems([[UIPasteboard.typeAutomatic: invitationURL]], options: [.localOnly: true, .expirationDate: Date().addingTimeInterval(60)])
                         }
                     }

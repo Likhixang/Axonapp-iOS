@@ -2600,3 +2600,13 @@
 "编辑模型配置" = "Edit model settings";
 "路由条件" = "Routing conditions";
 "模型信息" = "Model information";
+"隐藏" = "Hide";
+"显示" = "Show";
+"复制" = "Copy";
+"已复制" = "Copied";
+"读取配置" = "Load settings";
+"项目 ID" = "Project ID";
+"服务账号 JSON" = "Service account JSON";
+"添加 API Key" = "Add API Key";
+"复制邀请链接" = "Copy invitation link";
+"Token / JSON" = "Token / JSON";

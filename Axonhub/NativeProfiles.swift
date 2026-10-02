@@ -343,7 +343,7 @@ struct NativeAPIKeyUsageView: View {
                             let limit = Double(quota["quota"][key].string) ?? quota["quota"][key].number
                             let used = Double(quota["usage"][usageKey].string) ?? quota["usage"][usageKey].number
                             VStack(alignment: .leading, spacing: 8) {
-                                HStack { Text(NativeAdminLabels.field(key)); Spacer(); Text(key == "totalTokens" ? DisplayFormat.compact(used) + " / " + DisplayFormat.compact(limit) : DisplayFormat.number(used) + " / " + DisplayFormat.number(limit)).monospacedDigit() }
+                                HStack { Text(NativeAdminLabels.field(key)); Spacer(); Text(key == "totalTokens" ? DisplayFormat.compact(used) + " / " + DisplayFormat.compact(limit) : key == "cost" ? ManagementFormat.cost(quota["usage"][usageKey]) + " / " + ManagementFormat.cost(quota["quota"][key]) : DisplayFormat.number(used) + " / " + DisplayFormat.number(limit)).monospacedDigit() }
                                 if limit > 0 { ProgressView(value: min(used, limit), total: limit).tint(used >= limit ? .orange : .accentColor) }
                             }.padding(.vertical, 5)
                         }

@@ -247,7 +247,7 @@ private struct AdminFieldRow: View {
             } else if AdminSchema.sensitive(field.name) {
                 if revealed { TextField(NativeAdminLabels.field(field.name), text: scalarString).textInputAutocapitalization(.never).autocorrectionDisabled() }
                 else { SecureField(NativeAdminLabels.field(field.name), text: scalarString).textInputAutocapitalization(.never).autocorrectionDisabled() }
-                Button(revealed ? "隐藏秘密" : "显示秘密（请注意周围环境）") { revealed.toggle() }.font(.caption)
+                Button { revealed.toggle() } label: { Image(systemName: revealed ? "eye.slash" : "eye").frame(width: 44, height: 44) }.buttonStyle(.borderless).accessibilityLabel(obsText(revealed ? "隐藏" : "显示"))
             } else if ["content", "pattern", "replacement", "description", "body", "customMessage", "testSystemPrompt", "testUserPrompt", "regex"].contains(field.name) {
                 TextEditor(text: scalarString).frame(minHeight: 100).font(.body.monospaced())
             } else {

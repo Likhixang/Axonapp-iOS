@@ -38,6 +38,10 @@ enum NativeAdminLabels {
             if case .number(let count) = item { return DisplayFormat.compact(count) }
             if case .string(let text) = item, let count = Double(text) { return DisplayFormat.compact(count) }
         }
+        if DisplayFormat.isMoneyQuantity(key) {
+            if case .number(let amount) = item { return DisplayFormat.money(amount) }
+            if case .string(let text) = item, let amount = DisplayFormat.money(text) { return amount }
+        }
         switch item {
         case .bool(let flag): return obsText(flag ? "是" : "否")
         case .null: return "—"

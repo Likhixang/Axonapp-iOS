@@ -16,6 +16,7 @@ struct KeysWorkspaceView: View {
     @State private var failure: String?
     @State private var creating = false
     @State private var editingKey: JSON?
+    @State private var detailID: String?
     @State private var archiveKey: JSON?
     @State private var confirmingArchive = false
     @State private var revision = UUID()
@@ -60,7 +61,9 @@ struct KeysWorkspaceView: View {
                                 Button { select(row) } label: { Image(systemName: selection.contains(row["id"].string) ? "checkmark.circle.fill" : "circle") }
                                     .buttonStyle(.plain).frame(width: 44, height: 44)
                             }
-                            NavigationLink { NativeEntityDetailView(session: session, module: .apiKeys, id: row["id"].string) } label: { KeySummaryRow(value: row) }
+                            Button { detailID = row["id"].string } label: {
+                                KeySummaryRow(value: row).frame(maxWidth: .infinity, alignment: .leading)
+                            }.buttonStyle(.plain).contentShape(Rectangle())
                         }
                         .swipeActions(edge: .leading, allowsFullSwipe: false) {
                             if !selecting && !session.busy {
@@ -100,6 +103,9 @@ struct KeysWorkspaceView: View {
         }
         .listStyle(.insetGrouped)
         .navigationTitle("密钥")
+        .navigationDestination(isPresented: Binding(get: { detailID != nil }, set: { if !$0 { detailID = nil } })) {
+            if let session = session, let id = detailID { NativeEntityDetailView(session: session, module: .apiKeys, id: id) }
+        }
         .searchable(text: $search, prompt: obsText("搜索密钥名称"))
         .toolbar {
             ToolbarItemGroup(placement: .navigationBarTrailing) {

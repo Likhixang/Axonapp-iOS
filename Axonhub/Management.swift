@@ -77,6 +77,31 @@ struct ChannelDraft {
         originalSettings = settings
         secretsLoaded = true
     }
+    var editableKeys: [String] {
+        let keys = credentials["apiKeys"].array.map(\.string)
+        if !keys.isEmpty { return keys }
+        return [secretsLoaded ? credentials["apiKey"].string : apiKey]
+    }
+    mutating func setKey(_ text: String, at index: Int) {
+        var keys = editableKeys
+        guard keys.indices.contains(index) else { return }
+        keys[index] = text
+        if keys.count == 1 && credentials["apiKeys"].array.isEmpty {
+            if secretsLoaded { var fields = credentials.object; fields["apiKey"] = .string(text); credentials = .object(fields) }
+            else { apiKey = text }
+        } else { storeKeys(keys) }
+    }
+    mutating func appendKey() { storeKeys(editableKeys + [""]) }
+    mutating func removeKey(at index: Int) {
+        var keys = editableKeys
+        guard keys.count > 1, keys.indices.contains(index) else { return }
+        keys.remove(at: index); storeKeys(keys)
+    }
+    private mutating func storeKeys(_ keys: [String]) {
+        var fields = credentials.object
+        fields["apiKeys"] = .array(keys.map(JSON.string)); fields["apiKey"] = .string("")
+        credentials = .object(fields); apiKey = ""
+    }
     mutating func migrate(to newType: String) {
         guard type != newType else { return }
         type = newType

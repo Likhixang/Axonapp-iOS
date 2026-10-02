@@ -313,7 +313,7 @@ struct AdminOperationView: View {
                 }
             }
             Button("取消", role: .cancel) { }
-        } message: { Text("返回配置可能包含密码、请求头和诊断内容，请确认当前实例并注意周围环境。") }
+        } message: { Text("读取配置") }
         .sheet(item: $detailTarget) { target in
             NavigationStack { AdminDetailView(session: session, target: target) }
         }
@@ -446,8 +446,7 @@ private struct AdminDetailView: View {
     let target: AdminDetailTarget
     @Environment(\.dismiss) private var dismiss
     @State private var detail: JSON = .null
-    @State private var secret: JSON = .null
-    @State private var showSecret = false
+
     var body: some View {
         List {
             Section("精确目标") {
@@ -456,17 +455,8 @@ private struct AdminDetailView: View {
                 if !detail.isNull { AdminResultTree(value: detail, hideSecrets: true) }
             }
             if target.entity == "APIKey" {
-                Section("秘密") {
-                    Button(showSecret ? "隐藏 API Key" : "显示或复制 API Key") {
-                        if showSecret { showSecret = false; secret = .null }
-                        else { revealSecret() }
-                    }.disabled(session.busy)
-                    if showSecret && !secret["key"].string.isEmpty {
-                        Text(secret["key"].string).font(.caption.monospaced()).textSelection(.enabled)
-                        Button("复制 API Key（剪贴板含秘密）") {
-                            UIPasteboard.general.setItems([[UIPasteboard.typeAutomatic: secret["key"].string]], options: [.localOnly: true, .expirationDate: Date().addingTimeInterval(60)])
-                        }
-                    }
+                Section("API Key") {
+                    APIKeyValueRow(read: revealSecret).id(session.invalidated).disabled(session.busy || session.invalidated)
                 }
             }
             Section("目标操作") {
@@ -481,15 +471,12 @@ private struct AdminDetailView: View {
         .navigationTitle("详情")
         .toolbar { ToolbarItem(placement: .cancellationAction) { Button("关闭") { dismiss() } } }
         .task { session.start { detail = try await session.detail(target.entity, id: target.id); guard !detail.isNull else { throw AdminError.notFound } } }
-        .onChange(of: session.invalidated) { invalid in if invalid { secret = .null; detail = .null; showSecret = false } }
-        .onDisappear { secret = .null; showSecret = false }
+        .onChange(of: session.invalidated) { invalid in if invalid { detail = .null } }
     }
-    private func revealSecret() {
-        session.start {
-            let revealed = try await session.read("revealAPIKey", variables: .object(["id": .string(target.id)]))
-            guard revealed["id"].string == target.id, !revealed["key"].string.isEmpty else { throw AdminError.notFound }
-            secret = revealed; showSecret = true
-        }
+    @MainActor private func revealSecret() async throws -> String {
+        let revealed = try await session.read("revealAPIKey", variables: .object(["id": .string(target.id)]))
+        guard revealed["id"].string == target.id, !revealed["key"].string.isEmpty else { throw AdminError.notFound }
+        return revealed["key"].string
     }
     private func seed(_ operation: AdminOperation) -> JSON {
         var result: [String: JSON] = [:]

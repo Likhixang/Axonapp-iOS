@@ -10,6 +10,7 @@ struct ManagementEditor: View {
     @State private var loaded = false
     @State private var loading = false
     @State private var saving = false
+    @State private var secretsLoading = false
     @State private var writeStarted = false
     @State private var uncertainWrite = false
     @State private var failure: String?
@@ -34,7 +35,7 @@ struct ManagementEditor: View {
                     Text(target.instance.name)
                     Text(target.instance.address).font(.caption).foregroundStyle(.secondary)
                 }
-                if loading { ProgressView() }
+                if loading || secretsLoading { ProgressView() }
                 if let failure = failure {
                     Section {
                         Text(failure).foregroundStyle(.red)
@@ -49,7 +50,7 @@ struct ManagementEditor: View {
                     }
                 }
             }
-            .disabled(saving || loading)
+            .disabled(saving || loading || secretsLoading)
             .navigationTitle(title)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
@@ -57,7 +58,7 @@ struct ManagementEditor: View {
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     Button(NSLocalizedString("保存", comment: "")) { Task { await save() } }
-                        .disabled(!loaded || loading || saving || store.managementBusy || uncertainWrite || target.kind == .channel && creating && !channel.authorizeReadback)
+                        .disabled(!loaded || loading || saving || secretsLoading || store.managementBusy || uncertainWrite || target.kind == .channel && creating && !channel.authorizeReadback)
                 }
             }
             .interactiveDismissDisabled(saving)
@@ -89,29 +90,40 @@ struct ManagementEditor: View {
                     LabeledEditorField("备注", text: $channel.remark)
                     NativeStringListField(title: "标签", values: Binding(get: { channel.tags.lines }, set: { channel.tags = $0.joined(separator: "\n") }))
                 }
-                Section("认证") {
+                Section(channel.type == "anthropic_gcp" || channel.type == "gemini_vertex" ? obsText("认证") : "API Key") {
                     if (!creating || duplicateID != nil) && !channel.secretsLoaded {
-                        Button("读取现有认证与高级配置") { Task { await loadSecrets() } }
-                        Text("凭据只读入当前编辑器，不保存到本地；未修改的配置保持原样。").font(.caption).foregroundStyle(.secondary)
-                        Text("不修改凭据时保持原样，无需重复输入。").font(.caption).foregroundStyle(.secondary)
+                        Button("重试") { Task { await loadSecrets() } }
+                    } else if channel.type == "anthropic_gcp" || channel.type == "gemini_vertex" {
+                        LabeledEditorField("项目 ID", text: gcpField("projectID"))
+                        LabeledEditorField("区域", text: gcpField("region"))
+                        KeyEditorField(title: obsText("服务账号 JSON"), text: gcpField("jsonData"))
+                        if channel.type == "gemini_vertex" { KeyEditorField(title: "API Key", text: credentialKey) }
+                    } else if ["codex", "claudecode", "antigravity", "github_copilot", "xai_subscription"].contains(channel.type) {
+                        NavigationLink("OAuth 授权或导入") {
+                            ChannelOAuthView(store: store, target: target, type: channel.type, credential: credentialKey, proxy: channel.settings["proxy"])
+                        }
+                        KeyEditorField(title: "Token / JSON", text: credentialKey)
+                        if !channel.credentials["oauth"].isNull {
+                            KeyEditorField(title: "Access Token", text: oauthField("accessToken"))
+                            KeyEditorField(title: "Refresh Token", text: oauthField("refreshToken"))
+                            LabeledEditorField("Client ID", text: oauthField("clientID"))
+                        }
+                    } else if channel.type == "anthropic_aws" {
+                        KeyEditorField(title: "API Key", text: credentialKey)
                     } else {
-                        if channel.type == "anthropic_gcp" || channel.type == "gemini_vertex" {
-                            ChannelSchemaFields(value: $channel.credentials, type: "ChannelCredentialsInput", path: "credentials", secure: true)
-                        } else if ["codex", "claudecode", "antigravity", "github_copilot", "xai_subscription"].contains(channel.type) {
-                            NavigationLink("OAuth 授权或导入") { ChannelOAuthView(store: store, target: target, type: channel.type, credential: credentialKey, proxy: channel.settings["proxy"]) }
-                            LabeledEditorField("OAuth JSON / Token", text: credentialKey, secure: true)
-                            if channel.secretsLoaded {
-                                NavigationLink("多个密钥及管理凭据") { Form { ChannelSchemaFields(value: $channel.credentials, type: "ChannelCredentialsInput", path: "credentials", secure: true) }.navigationTitle("认证") }
-                            }
-                        } else {
-                            if channel.secretsLoaded && !channel.credentials["apiKeys"].array.isEmpty {
-                                ForEach(Array(channel.credentials["apiKeys"].array.indices), id: \.self) { index in
-                                    LabeledEditorField(NativeAdminLabels.field("apiKeys") + " \(index + 1)", text: credentialItem(index), secure: true)
+                        ForEach(Array(channel.editableKeys.indices), id: \.self) { index in
+                            HStack(alignment: .top, spacing: 0) {
+                                KeyEditorField(title: "API Key \(index + 1)", text: credentialItem(index))
+                                if channel.editableKeys.count > 1 {
+                                    Button(role: .destructive) { channel.removeKey(at: index) } label: {
+                                        Image(systemName: "minus.circle").frame(width: 44, height: 44)
+                                    }.buttonStyle(.borderless).accessibilityLabel("移除")
                                 }
-                            } else if channel.type != "anthropic_aws" {
-                                LabeledEditorField("API Key", text: credentialKey, secure: true)
                             }
-                            NavigationLink("多个密钥及管理凭据") { Form { ChannelSchemaFields(value: $channel.credentials, type: "ChannelCredentialsInput", path: "credentials", secure: true) }.navigationTitle("认证") }
+                        }
+                        Button { channel.appendKey() } label: { Label("添加 API Key", systemImage: "plus") }
+                        if channel.type.hasPrefix("zenmux") || !channel.credentials["managementApiKey"].string.isEmpty {
+                            KeyEditorField(title: obsText("管理 API Key"), text: credentialField("managementApiKey"))
                         }
                     }
                 }
@@ -172,8 +184,7 @@ struct ManagementEditor: View {
                     }
                 } else {
                     Section {
-                        Button("读取现有认证与高级配置") { Task { await loadSecrets() } }
-                        Text("凭据只读入当前编辑器，不保存到本地；未修改的配置保持原样。").font(.caption).foregroundStyle(.secondary)
+                        Button("重试") { Task { await loadSecrets() } }
                     }
                 }
             }
@@ -192,16 +203,22 @@ struct ManagementEditor: View {
             else { channel.apiKey = text }
         })
     }
-    private func credentialItem(_ index: Int) -> Binding<String> {
-        Binding(get: {
-            let keys = channel.credentials["apiKeys"].array
-            return keys.indices.contains(index) ? keys[index].string : ""
-        }, set: { text in
-            var keys = channel.credentials["apiKeys"].array
-            guard keys.indices.contains(index) else { return }
-            keys[index] = .string(text)
-            var fields = channel.credentials.object; fields["apiKeys"] = .array(keys); channel.credentials = .object(fields)
+    private func credentialField(_ key: String) -> Binding<String> {
+        Binding(get: { channel.credentials[key].string }, set: { text in
+            var fields = channel.credentials.object; fields[key] = .string(text); channel.credentials = .object(fields)
         })
+    }
+    private func nestedCredential(_ group: String, _ key: String) -> Binding<String> {
+        Binding(get: { channel.credentials[group][key].string }, set: { text in
+            var nested = channel.credentials[group].object; nested[key] = .string(text)
+            var fields = channel.credentials.object; fields[group] = .object(nested); channel.credentials = .object(fields)
+        })
+    }
+    private func gcpField(_ key: String) -> Binding<String> { nestedCredential("gcp", key) }
+    private func oauthField(_ key: String) -> Binding<String> { nestedCredential("oauth", key) }
+    private func credentialItem(_ index: Int) -> Binding<String> {
+        Binding(get: { channel.editableKeys.indices.contains(index) ? channel.editableKeys[index] : "" },
+                set: { channel.setKey($0, at: index) })
     }
     private func setModels(_ models: [String]) {
         channel.supportedModels = Array(Set(models)).sorted().joined(separator: "\n")
@@ -277,6 +294,7 @@ struct ManagementEditor: View {
             }
             if creating { channel.authorizeReadback = true }
             loaded = true
+            if target.kind == .channel { await loadSecrets() }
         } catch { failure = error.localizedDescription }
     }
     @MainActor private func save() async {
@@ -300,13 +318,14 @@ struct ManagementEditor: View {
     private var cardBinding: Binding<JSON> { Binding(get: { JSON.from(model.modelCard) ?? .object([:]) }, set: { model.modelCard = $0.prettyJSON }) }
     private func clearSecrets() { channel.apiKey = ""; channel.credentials = .object([:]); channel.originalCredentials = nil; channel.settings = .object([:]); channel.originalSettings = nil; channel.secretsLoaded = false }
     @MainActor private func loadSecrets() async {
-        guard !loading, !saving else { return }
-        loading = true; failure = nil; defer { loading = false }
+        guard !secretsLoading, !saving, !creating || duplicateID != nil else { return }
+        secretsLoading = true; failure = nil; defer { secretsLoading = false }
         do {
             var readTarget = target
             if let source = duplicateID { readTarget = ManagementTarget(instance: target.instance, connectionRevision: target.connectionRevision, entityID: source, kind: .channel) }
             let secret = try await store.authorizedChannelSecrets(readTarget)
             if let original = channel.original { guard original["updatedAt"] == secret["updatedAt"] else { throw ManagementError.changedTarget } }
+            try Task.checkCancellation()
             channel.loadSecrets(secret)
         } catch { failure = error.localizedDescription }
     }
@@ -320,6 +339,8 @@ struct ManagementEditor: View {
         do {
             _ = try await store.managedBatch(target, ids: [id], action: .sync)
             channel = ChannelDraft(detail: try await store.managementDetail(target))
+            saving = false
+            await loadSecrets()
         } catch { failure = error.localizedDescription; uncertainWrite = true }
     }
     @MainActor private func previewRoutes() async {
@@ -338,8 +359,8 @@ struct LabeledEditorField: View {
     }
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
-            Text(title).font(.caption).foregroundStyle(.secondary)
-            if secure { SecureField(title, text: $text).accessibilityLabel(title) }
+            if !secure { Text(title).font(.caption).foregroundStyle(.secondary) }
+            if secure { KeyEditorField(title: title, text: $text) }
             else { TextField(title, text: $text, axis: .vertical).accessibilityLabel(title) }
         }.textInputAutocapitalization(.never).autocorrectionDisabled().padding(.vertical, 3)
     }
