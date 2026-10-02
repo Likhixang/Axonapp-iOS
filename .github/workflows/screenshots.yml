@@ -40,7 +40,7 @@ jobs:
       - name: Capture Chinese and English screens
         run: |
           set -euo pipefail
-          xcodebuild test -project Axonhub.xcodeproj -scheme Axonhub -configuration Debug \
+          xcodebuild test -project Axonapp.xcodeproj -scheme Axonhub -configuration Debug \
             -destination "platform=iOS Simulator,id=$SIMULATOR_ID" \
             -only-testing:AxonhubUITests/SmokeTests/testReadmeScreenshots \
             -parallel-testing-enabled NO -resultBundlePath "$RUNNER_TEMP/Readme.xcresult" \

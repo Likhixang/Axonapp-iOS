@@ -1,8 +1,8 @@
-# Axonhub App iOS
+# Axonapp
 
 [English](README.md) | [简体中文](README.zh-CN.md) | [繁體中文](README.zh-TW.md) | **한국어** | [日本語](README.ja.md)
 
-iPhone과 iPad를 위한 네이티브 [AxonHub](https://github.com/looplj/axonhub) 관리 앱입니다. 게이트웨이 사용량을 확인하고 채널, 모델, 접근 권한을 관리할 수 있습니다.
+Axonapp은 [AxonHub](https://github.com/looplj/axonhub) 인스턴스를 관리하는 iPhone 및 iPad용 독립적인 서드파티 클라이언트입니다. AxonHub 프로젝트와 제휴 관계가 없으며 공식적으로 승인된 앱이 아닙니다. 사용량 확인과 채널, 모델, 접근 권한 관리를 지원합니다.
 
 SwiftUI로 제작되었으며 iOS 16 이상을 지원합니다. iOS 26에서는 Liquid Glass 인터페이스를 제공합니다.
 
@@ -27,7 +27,7 @@ SwiftUI로 제작되었으며 iOS 16 이상을 지원합니다. iOS 26에서는 
 
 **iOS / iPadOS 16.0 이상**이 필요합니다.
 
-1. [Releases](https://github.com/Likhixang/Axonhub-App-iOS/releases/latest)에서 `Axonhub-App-iOS-unsigned.ipa`를 다운로드합니다.
+1. [Releases](https://github.com/Likhixang/Axonapp-iOS/releases/latest)에서 `Axonapp.ipa`를 다운로드합니다.
 2. SideStore, AltStore 또는 개인 서명 인증서로 서명하여 설치합니다.
 3. **설정 → 인스턴스 추가**에서 AxonHub 주소를 입력하고 관리자 계정으로 로그인합니다. 일반 API 키로는 사용 가능한 모델 목록만 조회할 수 있습니다.
 
@@ -38,7 +38,7 @@ SwiftUI로 제작되었으며 iOS 16 이상을 지원합니다. iOS 26에서는 
 ```sh
 brew install xcodegen
 xcodegen generate
-open Axonhub.xcodeproj
+open Axonapp.xcodeproj
 ```
 
 기기에 설치하려면 Xcode에서 본인의 서명 팀을 선택하고 코드 서명을 활성화하세요.

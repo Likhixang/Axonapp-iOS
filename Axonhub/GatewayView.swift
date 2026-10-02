@@ -140,7 +140,7 @@ struct ProvidersCatalogView: View {
                     Button {
                         Task { await refreshCatalog() }
                     } label: {
-                        Label(NSLocalizedString("刷新官方目录", comment: ""), systemImage: "arrow.clockwise")
+                        Label(NSLocalizedString("刷新目录", comment: ""), systemImage: "arrow.clockwise")
                     }
                     .disabled(loading || refreshing)
                 }

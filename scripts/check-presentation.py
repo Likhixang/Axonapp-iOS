@@ -34,13 +34,15 @@ def main():
             assert not re.search(pattern, source), f'{file.name}: raw UI label {pattern}'
     print(f'PASS: {len(fields)} typed fields, {len(enums)} enum choices, {len(operations)} operation titles; no raw-label regression')
     about = (ROOT / 'Axonhub/SettingsView.swift').read_text().split('struct AboutView: View {')[1]
-    for required in ['安全与兼容', '开源与致谢', '问题反馈', '源代码', '图标许可', '许可文件未能读取']:
+    for required in ['独立第三方客户端', '开源与致谢', '问题反馈', '源代码', '图标许可', '许可文件未能读取']:
         assert required in about, required
     assert 'CFBundleShortVersionString' in about and 'CFBundleVersion' in about
+    assert 'Section("安全与兼容")' not in about
+    assert 'AxonHub 原生客户端' not in about
     assert 'BrandIcons-LICENSE' in about and 'String(contentsOf: url' in about
     notices = (ROOT / 'Axonhub/BrandIcons-LICENSE.txt').read_text()
     assert 'MIT License' in notices and 'Apache License' in notices
-    print('PASS: About metadata, real project links, security facts and bundled license route')
+    print('PASS: About third-party identity, real project links and bundled license route')
     if args.swift:
         core = (ROOT / 'Axonhub/Core.swift').read_text()
         core = core[core.index('indirect enum JSON:'):core.index('/// Safe user-facing errors')]

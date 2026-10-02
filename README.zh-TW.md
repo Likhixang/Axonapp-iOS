@@ -1,8 +1,8 @@
-# Axonhub App iOS
+# Axonapp
 
 [English](README.md) | [简体中文](README.zh-CN.md) | **繁體中文** | [한국어](README.ko.md) | [日本語](README.ja.md)
 
-面向 iPhone 和 iPad 的原生 [AxonHub](https://github.com/looplj/axonhub) 管理應用程式。在手機上查看閘道用量、管理渠道與模型、設定存取權限。
+Axonapp 是面向 iPhone 和 iPad 的獨立第三方用戶端，用於管理 [AxonHub](https://github.com/looplj/axonhub) 實例，與 AxonHub 專案無隸屬或官方背書關係。可查看閘道用量、管理渠道與模型、設定存取權限。
 
 以 SwiftUI 打造，支援 iOS 16 以上系統，在 iOS 26 上呈現 Liquid Glass 介面。
 
@@ -27,7 +27,7 @@
 
 需要 **iOS / iPadOS 16.0 或更新版本**。
 
-1. 從 [Releases](https://github.com/Likhixang/Axonhub-App-iOS/releases/latest) 下載 `Axonhub-App-iOS-unsigned.ipa`。
+1. 從 [Releases](https://github.com/Likhixang/Axonapp-iOS/releases/latest) 下載 `Axonapp.ipa`。
 2. 使用 SideStore、AltStore 或自己的簽署憑證進行簽署安裝。
 3. 開啟 **設定 → 新增實例**，填寫 AxonHub 位址並使用管理員帳號登入。一般 API Key 僅可查看可用模型清單。
 
@@ -38,7 +38,7 @@
 ```sh
 brew install xcodegen
 xcodegen generate
-open Axonhub.xcodeproj
+open Axonapp.xcodeproj
 ```
 
 若要安裝至裝置，請在 Xcode 中選擇自己的簽署團隊並啟用程式碼簽署。

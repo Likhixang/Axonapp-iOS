@@ -172,7 +172,7 @@
 "下一页" = "Next page";
 "不限" = "No limit";
 "仅对当前精确 ID 读取秘密。请注意周围环境；复制内容只在本机剪贴板保留一分钟。" = "Read the secret only for the current exact ID. Please be aware of your surroundings; the copied content will only remain on the local clipboard for one minute.";
-"仅支持可识别的图片文件。官方 Playground 不支持音频、视频或文档输入。" = "Only recognized image files are supported. The official playground does not support audio, video or document input.";
+"仅支持可识别的图片文件。 Playground 不支持音频、视频或文档输入。" = "Only recognized image files are supported. The playground does not support audio, video or document input.";
 "仅显示已禁用渠道（官方警告筛选）" = "Show only disabled channels (official warning filter)";
 "今日" = "Today";
 "从备份恢复" = "Restore from backup";
@@ -180,8 +180,8 @@
 "会话仅在本界面内存中保留，切换实例或项目会清空。官方网页 Playground 没有保存聊天历史的 API；服务端请求日志不等同于会话存档。" = "Sessions are only retained in the memory of this interface and will be cleared when switching instances or projects. The official website Playground does not have an API to save chat history; the server request log is not equivalent to session archive.";
 "会话线程" = "Conversation thread";
 "你是一个有用的助手。" = "You are a useful assistant.";
-"使用当前实例 API Key 调用官方 /v1/chat/completions；项目由 Key 绑定，不使用管理员 JWT 调用此端点。" = "Use the current instance API Key to call the official /v1/chat/completions; the project is bound by the Key and does not use the administrator JWT to call this endpoint.";
-"使用当前登录 JWT 调用官方 /admin/playground/chat，不创建临时 API Key。" = "Use the current login JWT to call the official /admin/playground/chat without creating a temporary API Key.";
+"使用当前实例 API Key 调用 /v1/chat/completions；项目由 Key 绑定，不使用管理员 JWT 调用此端点。" = "Use the current instance API Key to call the /v1/chat/completions; the project is bound by the Key and does not use the administrator JWT to call this endpoint.";
+"使用当前登录 JWT 调用 /admin/playground/chat，不创建临时 API Key。" = "Use the current login JWT to call the /admin/playground/chat without creating a temporary API Key.";
 "使用次数" = "Number of uses";
 "保存代理预设会按 URL 替换整项，包括凭据；请填写完整配置或先读取旧项。" = "Saving a proxy preset replaces the entire entry by URL, including credentials; please complete the configuration or load the old entry first.";
 "保护并保留" = "Retain";
@@ -213,7 +213,7 @@
 "助手" = "Assistant";
 "原始请求" = "Original request";
 "原生编辑与精确读回" = "Edit";
-"参数支持与图片识别取决于所选模型。官方 Playground 仅支持文本与图片输入。" = "Parameter support and image recognition depend on the selected model. The official playground only supports text and image input.";
+"参数支持与图片识别取决于所选模型。 Playground 仅支持文本与图片输入。" = "Parameter support and image recognition depend on the selected model. The playground only supports text and image input.";
 "发送 null" = "Send null";
 "发送（消耗额度）" = "Send (consumption quota)";
 "取消保留" = "Unretain";
@@ -542,7 +542,7 @@
 "正在读取服务商目录..." = "Loading provider catalog...";
 "暂无服务商目录" = "No provider catalog available";
 "搜索服务商名称或 ID" = "Search provider name or ID";
-"刷新官方目录" = "Refresh Official Catalog";
+"刷新目录" = "Refresh Catalog";
 "网关概览" = "Overview";
 "多维用量" = "Usage";
 "监控与概览" = "Overview";
@@ -2505,7 +2505,7 @@
 "切换实例或项目会清空会话。" = "Switching instance or project clears this conversation.";
 "替换会清除现有覆盖项；合并保留不冲突的项。" = "Replace clears existing overrides; merge keeps nonconflicting items.";
 "连接与验证" = "Connection";
-"AxonHub 原生客户端" = "Native AxonHub client";
+"独立第三方客户端" = "Independent third-party client";
 "源代码" = "Source code";
 "问题反馈" = "Report an issue";
 "安全与兼容" = "Security & compatibility";

@@ -259,15 +259,15 @@ import UIKit
                 }
                 Text("系统提示词").font(.caption).foregroundStyle(.secondary)
                 TextEditor(text: $state.parameters.system).frame(minHeight: 80).accessibilityLabel("系统提示词")
-                Text("参数支持与图片识别取决于所选模型。官方 Playground 仅支持文本与图片输入。")
+                Text("参数支持与图片识别取决于所选模型。 Playground 仅支持文本与图片输入。")
                     .font(.caption).foregroundStyle(.secondary)
             }.disabled(state.busy || state.loading)
             if state.loading { ProgressView("正在读取项目、渠道与模型…") }
             if store.selectedInstance?.authType == .apiKey {
-                Text("使用当前实例 API Key 调用官方 /v1/chat/completions；项目由 Key 绑定，不使用管理员 JWT 调用此端点。")
+                Text("使用当前实例 API Key 调用 /v1/chat/completions；项目由 Key 绑定，不使用管理员 JWT 调用此端点。")
                     .font(.caption).foregroundStyle(.secondary)
             } else {
-                Text("使用当前登录 JWT 调用官方 /admin/playground/chat，不创建临时 API Key。")
+                Text("使用当前登录 JWT 调用 /admin/playground/chat，不创建临时 API Key。")
                     .font(.caption).foregroundStyle(.secondary)
             }
         }

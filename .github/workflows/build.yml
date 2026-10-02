@@ -72,8 +72,8 @@ jobs:
       - name: Build unsigned device archive and IPA
         run: |
           set -euo pipefail
-          xcodebuild archive -project Axonhub.xcodeproj -scheme Axonhub -configuration Release -destination 'generic/platform=iOS' -archivePath build/Axonhub.xcarchive CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY='' | tee archive.log
-          xcrun --sdk iphoneos assetutil --info build/Axonhub.xcarchive/Products/Applications/Axonhub.app/Assets.car > build/icon-assets.json
+          xcodebuild archive -project Axonapp.xcodeproj -scheme Axonhub -configuration Release -destination 'generic/platform=iOS' -archivePath build/Axonapp.xcarchive CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY='' | tee archive.log
+          xcrun --sdk iphoneos assetutil --info build/Axonapp.xcarchive/Products/Applications/Axonapp.app/Assets.car > build/icon-assets.json
           python3 - <<'PY'
           import json
           assets=json.load(open('build/icon-assets.json'))
@@ -92,35 +92,35 @@ jobs:
           PY
           python3 -B scripts/check-brand-icons.py --compiled build/icon-assets.json
           mkdir -p build/ipa/Payload
-          cp -R build/Axonhub.xcarchive/Products/Applications/Axonhub.app build/ipa/Payload/
-          (cd build/ipa && zip -qry ../Axonhub-App-iOS-unsigned.ipa Payload)
+          cp -R build/Axonapp.xcarchive/Products/Applications/Axonapp.app build/ipa/Payload/
+          (cd build/ipa && zip -qry ../Axonapp.ipa Payload)
           python3 - <<'PY'
           import zipfile, plistlib
-          path='build/Axonhub-App-iOS-unsigned.ipa'
+          path='build/Axonapp.ipa'
           with zipfile.ZipFile(path) as z:
               assert z.testzip() is None
-              info=plistlib.loads(z.read('Payload/Axonhub.app/Info.plist'))
+              info=plistlib.loads(z.read('Payload/Axonapp.app/Info.plist'))
               assert info['MinimumOSVersion']=='16.0'
               assert info['CFBundleIdentifier']=='com.khixang.axon'
-              assert info['CFBundleDisplayName']=='Axonhub'
+              assert info['CFBundleDisplayName']=='Axonapp'
               for key in ['CFBundleIcons','CFBundleIcons~ipad']:
                   assert info[key]['CFBundlePrimaryIcon']['CFBundleIconName'] == 'AppIcon'
                   assert set(info[key]['CFBundleAlternateIcons']) == {'AppIconLight','AppIconDark'}
               assert info['CFBundleShortVersionString']=='1.0.1'
-              assert info['CFBundleVersion']=='30'
+              assert info['CFBundleVersion']=='31'
               assert set(info.get('CFBundleLocalizations', [])) == {'zh-Hans', 'zh-Hant', 'en', 'ja', 'ko'}
-              assert 'Payload/Axonhub.app/Axonhub' in z.namelist()
-              notices = z.read('Payload/Axonhub.app/BrandIcons-LICENSE.txt').decode()
+              assert 'Payload/Axonapp.app/Axonapp' in z.namelist()
+              notices = z.read('Payload/Axonapp.app/BrandIcons-LICENSE.txt').decode()
               assert 'MIT License' in notices and 'Apache License' in notices
               print(info['CFBundleIdentifier'],info['MinimumOSVersion'],info['CFBundleShortVersionString'])
           PY
-          python3 scripts/check-localizations.py --ipa build/Axonhub-App-iOS-unsigned.ipa
-          shasum -a 256 build/Axonhub-App-iOS-unsigned.ipa > build/SHA256SUMS.txt
+          python3 scripts/check-localizations.py --ipa build/Axonapp.ipa
+          shasum -a 256 build/Axonapp.ipa > build/SHA256SUMS.txt
       - uses: actions/upload-artifact@v4
         with:
-          name: Axonhub-App-iOS-unsigned
+          name: Axonapp
           path: |
-            build/Axonhub-App-iOS-unsigned.ipa
+            build/Axonapp.ipa
             build/SHA256SUMS.txt
             build/icon-assets.json
           if-no-files-found: error

@@ -286,15 +286,15 @@ struct AboutView: View {
                             .accessibilityHidden(true)
                     }
                     Text(appName).font(.title2.bold())
-                    Text("AxonHub 原生客户端").font(.subheadline).foregroundStyle(.secondary)
+                    Text("独立第三方客户端").font(.subheadline).foregroundStyle(.secondary)
                     Text(version).font(.caption.monospaced()).foregroundStyle(.secondary)
                 }.frame(maxWidth: .infinity).padding(.vertical, 16)
             }
             Section("项目") {
-                Link(destination: URL(string: "https://github.com/Likhixang/Axonhub-App-iOS")!) {
+                Link(destination: URL(string: "https://github.com/Likhixang/Axonapp-iOS")!) {
                     aboutLabel("源代码", symbol: "chevron.left.forwardslash.chevron.right")
                 }
-                Link(destination: URL(string: "https://github.com/Likhixang/Axonhub-App-iOS/issues")!) {
+                Link(destination: URL(string: "https://github.com/Likhixang/Axonapp-iOS/issues")!) {
                     aboutLabel("问题反馈", symbol: "bubble.left.and.bubble.right")
                 }
                 Link(destination: URL(string: "https://github.com/Likhixang")!) {
@@ -304,12 +304,6 @@ struct AboutView: View {
                         Text("Likhixang").foregroundStyle(.secondary)
                     }
                 }
-            }
-            Section("安全与兼容") {
-                aboutLabel("凭据保存在本机 Keychain", symbol: "lock.shield")
-                aboutLabel("直连实例，无中转服务", symbol: "network")
-                aboutLabel("HTTP 需逐个实例允许", symbol: "checkmark.shield")
-                LabeledContent("系统要求", value: "iOS / iPadOS " + ((Bundle.main.object(forInfoDictionaryKey: "MinimumOSVersion") as? String) ?? "16.0") + "+")
             }
             Section {
                 Link(destination: URL(string: "https://github.com/looplj/axonhub")!) {

@@ -1,8 +1,8 @@
-# Axonhub App iOS
+# Axonapp
 
 **English** | [简体中文](README.zh-CN.md) | [繁體中文](README.zh-TW.md) | [한국어](README.ko.md) | [日本語](README.ja.md)
 
-A native [AxonHub](https://github.com/looplj/axonhub) management app for iPhone and iPad. Check gateway usage, manage channels and models, and control access from your device.
+Axonapp is an independent third-party iOS client for [AxonHub](https://github.com/looplj/axonhub), with no affiliation with or endorsement from the AxonHub project. Check gateway usage, manage channels and models, and control access from your iPhone or iPad.
 
 Built with SwiftUI. Supports iOS 16 and later, with Liquid Glass on iOS 26.
 
@@ -27,7 +27,7 @@ Built with SwiftUI. Supports iOS 16 and later, with Liquid Glass on iOS 26.
 
 Requires **iOS / iPadOS 16.0 or later**.
 
-1. Download `Axonhub-App-iOS-unsigned.ipa` from [Releases](https://github.com/Likhixang/Axonhub-App-iOS/releases/latest).
+1. Download `Axonapp.ipa` from [Releases](https://github.com/Likhixang/Axonapp-iOS/releases/latest).
 2. Sign and install it with SideStore, AltStore, or your own signing certificate.
 3. Open **Settings → Add instance**, enter your AxonHub address, and sign in with an administrator account. Ordinary API keys only provide access to the available model list.
 
@@ -38,7 +38,7 @@ Requires **macOS, Xcode 26, and XcodeGen**. No third-party runtime dependencies.
 ```sh
 brew install xcodegen
 xcodegen generate
-open Axonhub.xcodeproj
+open Axonapp.xcodeproj
 ```
 
 To install a local build on a device, select your signing team and enable code signing in Xcode.

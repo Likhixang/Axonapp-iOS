@@ -1,4 +1,4 @@
-name: Axonhub
+name: Axonapp
 options:
   bundleIdPrefix: com.khixang
   deploymentTarget:
@@ -9,7 +9,7 @@ settings:
   base:
     SWIFT_VERSION: "5.0"
     MARKETING_VERSION: "1.0.1"
-    CURRENT_PROJECT_VERSION: "30"
+    CURRENT_PROJECT_VERSION: "31"
     CODE_SIGNING_ALLOWED: NO
     TARGETED_DEVICE_FAMILY: "1,2"
 targets:
@@ -32,8 +32,9 @@ targets:
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.khixang.axon
+        PRODUCT_NAME: Axonapp
         GENERATE_INFOPLIST_FILE: YES
-        INFOPLIST_KEY_CFBundleDisplayName: Axonhub
+        INFOPLIST_KEY_CFBundleDisplayName: Axonapp
         INFOPLIST_KEY_UILaunchScreen_Generation: YES
         INFOPLIST_KEY_UIApplicationSceneManifest_Generation: YES
         INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents: YES

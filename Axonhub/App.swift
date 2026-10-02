@@ -1,7 +1,7 @@
 import SwiftUI
 
 @main
-struct AxonhubApp: App {
+struct AxonappApp: App {
     #if DEBUG && targetEnvironment(simulator)
     @StateObject private var store = ReadmePreview.makeStore()
     #else

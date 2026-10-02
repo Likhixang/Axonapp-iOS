@@ -158,7 +158,7 @@ def main():
                 assert not CHINESE.search(value), f'{language}: untranslated Chinese: {key!r}'
         info = catalog_info(language)
         assert set(info) == {'CFBundleDisplayName', 'NSLocalNetworkUsageDescription'}, language
-        assert info['CFBundleDisplayName'] == 'Axonhub'
+        assert info['CFBundleDisplayName'] == 'Axonapp'
         print(f'{language}: {len(table)} nonempty unique keys, format signatures valid, InfoPlist valid')
     english = tables['en']
     branded_lowercase = {'xAI', 'xAI · Responses', 'xAI · Subscription'}
@@ -182,7 +182,7 @@ def main():
         with zipfile.ZipFile(args.ipa) as archive:
             assert archive.testzip() is None, 'Corrupt IPA'
             for language in LANGUAGES:
-                prefix = f'Payload/Axonhub.app/{language}.lproj/'
+                prefix = f'Payload/Axonapp.app/{language}.lproj/'
                 for filename, expected in [('Localizable.strings', tables[language]), ('InfoPlist.strings', catalog_info(language))]:
                     actual = plistlib.loads(archive.read(prefix + filename))
                     assert actual == expected, f'IPA {language}/{filename} differs from source'

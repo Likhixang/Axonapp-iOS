@@ -1,2 +1,2 @@
-CFBundleDisplayName = "Axonhub";
+CFBundleDisplayName = "Axonapp";
 NSLocalNetworkUsageDescription = "로컬 또는 LAN 내 AxonHub AI 게이트웨이에 연결";

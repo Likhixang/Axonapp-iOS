@@ -1,8 +1,8 @@
-# Axonhub App iOS
+# Axonapp
 
 [English](README.md) | [简体中文](README.zh-CN.md) | [繁體中文](README.zh-TW.md) | [한국어](README.ko.md) | **日本語**
 
-iPhoneとiPad向けのネイティブ[AxonHub](https://github.com/looplj/axonhub)管理アプリです。ゲートウェイの使用状況を確認し、チャネルやモデル、アクセス権限を管理できます。
+Axonapp は [AxonHub](https://github.com/looplj/axonhub) インスタンスを管理する、iPhone と iPad 向けの独立したサードパーティ製クライアントです。AxonHub プロジェクトとの提携関係や公式の承認はありません。使用状況の確認、チャネルやモデル、アクセス権限の管理に対応しています。
 
 SwiftUIで構築され、iOS 16以降に対応しています。iOS 26ではLiquid Glassのインターフェースを利用できます。
 
@@ -27,7 +27,7 @@ SwiftUIで構築され、iOS 16以降に対応しています。iOS 26ではLiqu
 
 **iOS / iPadOS 16.0以降**が必要です。
 
-1. [Releases](https://github.com/Likhixang/Axonhub-App-iOS/releases/latest)から`Axonhub-App-iOS-unsigned.ipa`をダウンロードします。
+1. [Releases](https://github.com/Likhixang/Axonapp-iOS/releases/latest)から`Axonapp.ipa`をダウンロードします。
 2. SideStore、AltStore、または自身の署名証明書を使って署名し、インストールします。
 3. **設定 → インスタンスを追加**からAxonHubのアドレスを入力し、管理者アカウントでログインします。通常のAPIキーでは利用可能なモデル一覧のみ閲覧できます。
 
@@ -38,7 +38,7 @@ SwiftUIで構築され、iOS 16以降に対応しています。iOS 26ではLiqu
 ```sh
 brew install xcodegen
 xcodegen generate
-open Axonhub.xcodeproj
+open Axonapp.xcodeproj
 ```
 
 実機にインストールする場合は、Xcodeで自身の署名チームを選択し、コード署名を有効にしてください。

@@ -9,7 +9,7 @@ enum PlaygroundError: Error, LocalizedError {
         switch self {
         case .invalidInput: return NSLocalizedString("请选择模型，输入有效参数，并填写消息或添加图片。", comment: "")
         case .imageLimit: return NSLocalizedString("每张图片最多 10 MB，每次最多添加 8 张图片。", comment: "")
-        case .unsupportedImage: return NSLocalizedString("仅支持可识别的图片文件。官方 Playground 不支持音频、视频或文档输入。", comment: "")
+        case .unsupportedImage: return NSLocalizedString("仅支持可识别的图片文件。 Playground 不支持音频、视频或文档输入。", comment: "")
         case .interrupted: return NSLocalizedString("响应流提前断开，已保留部分内容。可手动重新生成（会再次消耗额度）。", comment: "")
         case .changedInstance: return NSLocalizedString("实例或项目已改变，已停止原请求。", comment: "")
         case .streamError: return NSLocalizedString("模型响应失败，已保留部分内容。请检查模型能力、参数与服务端日志。", comment: "")
