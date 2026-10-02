@@ -448,7 +448,6 @@ private struct AdminDetailView: View {
     @State private var detail: JSON = .null
     @State private var secret: JSON = .null
     @State private var showSecret = false
-    @State private var revealConfirmation = false
     var body: some View {
         List {
             Section("精确目标") {
@@ -460,7 +459,7 @@ private struct AdminDetailView: View {
                 Section("秘密") {
                     Button(showSecret ? "隐藏 API Key" : "显示或复制 API Key") {
                         if showSecret { showSecret = false; secret = .null }
-                        else { revealConfirmation = true }
+                        else { revealSecret() }
                     }.disabled(session.busy)
                     if showSecret && !secret["key"].string.isEmpty {
                         Text(secret["key"].string).font(.caption.monospaced()).textSelection(.enabled)
@@ -482,18 +481,15 @@ private struct AdminDetailView: View {
         .navigationTitle("详情")
         .toolbar { ToolbarItem(placement: .cancellationAction) { Button("关闭") { dismiss() } } }
         .task { session.start { detail = try await session.detail(target.entity, id: target.id); guard !detail.isNull else { throw AdminError.notFound } } }
-        .confirmationDialog("显示秘密", isPresented: $revealConfirmation, titleVisibility: .visible) {
-            Button("读取此目标的 API Key") {
-                session.start {
-                    secret = try await session.read("revealAPIKey", variables: .object(["id": .string(target.id)]))
-                    guard secret["id"].string == target.id, !secret["key"].string.isEmpty else { throw AdminError.notFound }
-                    showSecret = true
-                }
-            }
-            Button("取消", role: .cancel) { }
-        } message: { Text("仅对当前精确 ID 读取秘密。请注意周围环境；复制内容只在本机剪贴板保留一分钟。") }
         .onChange(of: session.invalidated) { invalid in if invalid { secret = .null; detail = .null; showSecret = false } }
         .onDisappear { secret = .null; showSecret = false }
+    }
+    private func revealSecret() {
+        session.start {
+            let revealed = try await session.read("revealAPIKey", variables: .object(["id": .string(target.id)]))
+            guard revealed["id"].string == target.id, !revealed["key"].string.isEmpty else { throw AdminError.notFound }
+            secret = revealed; showSecret = true
+        }
     }
     private func seed(_ operation: AdminOperation) -> JSON {
         var result: [String: JSON] = [:]
@@ -540,7 +536,7 @@ struct AdminResultTree: View {
     static func scalar(_ value: JSON) -> String {
         switch value {
         case .string(let text): return text
-        case .number(let number): return String(number)
+        case .number(let number): return DisplayFormat.number(number)
         case .bool(let flag): return obsText(flag ? "是" : "否")
         case .null: return "—"
         default: return ""

@@ -2,6 +2,28 @@ import Foundation
 
 /// UI-only formatting. Never use abbreviated values in API payloads or editors.
 enum DisplayFormat {
+    static func number(_ value: Double, locale: Locale = .autoupdatingCurrent) -> String {
+        guard value.isFinite else { return "—" }
+        return value.formatted(.number.locale(locale).precision(.fractionLength(0...2)))
+    }
+
+    /// Decimal scalars arrive as strings. Do not convert them through Double.
+    static func number(_ text: String, locale: Locale = .autoupdatingCurrent) -> String? {
+        guard text.range(of: #"^[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?$"#, options: .regularExpression) != nil,
+              let value = Decimal(string: text, locale: Locale(identifier: "en_US_POSIX")),
+              !value.isNaN else { return nil }
+        return value.formatted(.number.locale(locale).precision(.fractionLength(0...2)))
+    }
+
+    static func isDecimalQuantity(_ key: String) -> Bool {
+        let key = key.lowercased()
+        return ["cost", "totalcost", "price", "priceperunit", "subtotal", "flatfee", "usageperunit",
+                "cacheread", "cachewrite", "avgtokenspersecond", "throughput",
+                "avgtimetofirsttokenms", "averageresponsetime", "successrate", "hitrate",
+                "latency", "latencyms", "metricslatencyms", "metricsfirsttokenlatencyms",
+                "metricsreasoningdurationms", "duration"].contains(key)
+    }
+
     static func compact(_ value: Double) -> String {
         guard value.isFinite else { return "—" }
         let magnitude = abs(value)

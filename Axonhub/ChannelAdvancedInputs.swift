@@ -180,11 +180,11 @@ struct ChannelSchemaFields: View {
             } else if clean == "Boolean" {
                 Toggle(NativeAdminLabels.path(path), isOn: Binding(get: { value.bool }, set: { value = .bool($0) }))
             } else if ["Int", "Float", "Any", "Decimal"].contains(clean) {
-                TextField(NativeAdminLabels.path(path), text: Binding(get: { value.prettyJSON }, set: { value = JSON.from($0) ?? .string($0) }), axis: .vertical).textInputAutocapitalization(.never).autocorrectionDisabled()
+                LabeledEditorField(NativeAdminLabels.path(path), text: Binding(get: { value.prettyJSON }, set: { value = JSON.from($0) ?? .string($0) }))
             } else if secure {
-                SecureField(NativeAdminLabels.path(path), text: stringBinding).textInputAutocapitalization(.never).autocorrectionDisabled()
+                LabeledEditorField(NativeAdminLabels.path(path), text: stringBinding, secure: true)
             } else {
-                TextField(NativeAdminLabels.path(path), text: stringBinding, axis: .vertical).textInputAutocapitalization(.never).autocorrectionDisabled()
+                LabeledEditorField(NativeAdminLabels.path(path), text: stringBinding)
             }
         }
     }

@@ -39,6 +39,8 @@ jobs:
         run: python3 -B scripts/check-brand-icons.py --swift
       - name: Check Swift integration source guards
         run: python3 -B scripts/check-swift-integration.py
+      - name: Verify editor regressions with host Swift (no simulator)
+        run: python3 -B scripts/check-editor-regressions.py --swift
       - name: Check all localization resources and source coverage
         run: python3 scripts/check-localizations.py
       - name: Verify all GraphQL operations against official deployed schema
@@ -104,8 +106,8 @@ jobs:
               for key in ['CFBundleIcons','CFBundleIcons~ipad']:
                   assert info[key]['CFBundlePrimaryIcon']['CFBundleIconName'] == 'AppIcon'
                   assert set(info[key]['CFBundleAlternateIcons']) == {'AppIconLight','AppIconDark'}
-              assert info['CFBundleShortVersionString']=='1.0.0'
-              assert info['CFBundleVersion']=='28'
+              assert info['CFBundleShortVersionString']=='1.0.1'
+              assert info['CFBundleVersion']=='29'
               assert set(info.get('CFBundleLocalizations', [])) == {'zh-Hans', 'zh-Hant', 'en', 'ja', 'ko'}
               assert 'Payload/Axonhub.app/Axonhub' in z.namelist()
               notices = z.read('Payload/Axonhub.app/BrandIcons-LICENSE.txt').decode()

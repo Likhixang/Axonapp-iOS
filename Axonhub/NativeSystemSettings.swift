@@ -41,8 +41,9 @@ enum NativeAdminLabels {
         switch item {
         case .bool(let flag): return obsText(flag ? "是" : "否")
         case .null: return "—"
-        case .number(let number): return number.formatted()
+        case .number(let number): return DisplayFormat.number(number)
         case .string(let text):
+            if DisplayFormat.isDecimalQuantity(key), let number = DisplayFormat.number(text) { return number }
             if key.hasSuffix("At") || ["startTime", "endTime", "timestamp", "date"].contains(key) { return NativeDisplay.date(text) }
             let enumFields: Set<String> = ["status", "source", "type", "role", "action", "op", "mode", "unit", "period", "direction", "field", "loadBalancerStrategy", "loadBalanceStrategy", "traceStickyMode", "channelType", "providerType", "itemCode", "variantCode", "apiFormat", "apiFormats", "format", "operator", "logic", "stream", "finishReason", "finish_reason", "modelConflictStrategy", "modelPriceConflictStrategy", "apiKeyConflictStrategy", "channelConflictStrategy", "scopes", "effectiveScopes", "levels", "statuses", "resourceType", "frequency"]
             return enumFields.contains(key) ? value(text) : text

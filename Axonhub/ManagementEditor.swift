@@ -13,7 +13,6 @@ struct ManagementEditor: View {
     @State private var writeStarted = false
     @State private var uncertainWrite = false
     @State private var failure: String?
-    @State private var authorizeSecrets = false
     @State private var routes: JSON = .array([])
     @State private var fetched: [String] = []
     @State private var channelPage = 0
@@ -63,11 +62,8 @@ struct ManagementEditor: View {
             }
             .interactiveDismissDisabled(saving)
             .task { await load() }
-            .onDisappear { clearSecrets() }
-            .confirmationDialog("读取敏感配置", isPresented: $authorizeSecrets, titleVisibility: .visible) {
-                Button("读取") { Task { await loadSecrets() } }
-            } message: { Text("凭据只读入当前编辑器，不保存到本地；未修改的配置保持原样。") }
         }
+        .onDisappear { clearSecrets() }
     }
     private var channelFields: some View {
         Group {
@@ -78,11 +74,11 @@ struct ManagementEditor: View {
             }
             if channelPage == 0 {
                 Section("基本信息") {
-                    TextField("名称", text: $channel.name)
+                    LabeledEditorField("名称", text: $channel.name)
                     Picker("渠道类型", selection: Binding(get: { channel.type }, set: { channel.migrate(to: $0); fetched = [] })) {
                         ForEach(ChannelType.allCases) { Text(NativeAdminLabels.value($0.rawValue)).tag($0.rawValue) }
                     }
-                    TextField("Base URL（留空使用默认地址）", text: $channel.baseURL)
+                    LabeledEditorField("Base URL（留空使用默认地址）", text: $channel.baseURL)
                         .keyboardType(.URL).textInputAutocapitalization(.never).autocorrectionDisabled()
                         .disabled(!creating && channel.type == "xai_subscription")
                     Button("使用服务商默认地址") { channel.baseURL = ChannelDefaults.urls[channel.type] ?? "" }
@@ -90,21 +86,31 @@ struct ManagementEditor: View {
                         Toggle("确认迁移渠道类型", isOn: $channel.migrationConfirmed)
                         Text("类型迁移会重置协议与端点，请核对认证和模型配置。").font(.caption).foregroundStyle(.orange)
                     }
-                    TextField("备注", text: $channel.remark, axis: .vertical)
+                    LabeledEditorField("备注", text: $channel.remark)
                     NativeStringListField(title: "标签", values: Binding(get: { channel.tags.lines }, set: { channel.tags = $0.joined(separator: "\n") }))
                 }
                 Section("认证") {
                     if (!creating || duplicateID != nil) && !channel.secretsLoaded {
-                        Button("读取现有认证与高级配置") { authorizeSecrets = true }
+                        Button("读取现有认证与高级配置") { Task { await loadSecrets() } }
+                        Text("凭据只读入当前编辑器，不保存到本地；未修改的配置保持原样。").font(.caption).foregroundStyle(.secondary)
                         Text("不修改凭据时保持原样，无需重复输入。").font(.caption).foregroundStyle(.secondary)
                     } else {
                         if channel.type == "anthropic_gcp" || channel.type == "gemini_vertex" {
                             ChannelSchemaFields(value: $channel.credentials, type: "ChannelCredentialsInput", path: "credentials", secure: true)
                         } else if ["codex", "claudecode", "antigravity", "github_copilot", "xai_subscription"].contains(channel.type) {
-                            NavigationLink("OAuth 授权或导入") { ChannelOAuthView(store: store, target: target, type: channel.type, credential: $channel.apiKey, proxy: channel.settings["proxy"]) }
-                            SecureField("OAuth JSON / Token", text: $channel.apiKey).textInputAutocapitalization(.never).autocorrectionDisabled()
+                            NavigationLink("OAuth 授权或导入") { ChannelOAuthView(store: store, target: target, type: channel.type, credential: credentialKey, proxy: channel.settings["proxy"]) }
+                            LabeledEditorField("OAuth JSON / Token", text: credentialKey, secure: true)
+                            if channel.secretsLoaded {
+                                NavigationLink("多个密钥及管理凭据") { Form { ChannelSchemaFields(value: $channel.credentials, type: "ChannelCredentialsInput", path: "credentials", secure: true) }.navigationTitle("认证") }
+                            }
                         } else {
-                            if channel.type != "anthropic_aws" { SecureField("API Key", text: $channel.apiKey).textInputAutocapitalization(.never).autocorrectionDisabled() }
+                            if channel.secretsLoaded && !channel.credentials["apiKeys"].array.isEmpty {
+                                ForEach(Array(channel.credentials["apiKeys"].array.indices), id: \.self) { index in
+                                    LabeledEditorField(NativeAdminLabels.field("apiKeys") + " \(index + 1)", text: credentialItem(index), secure: true)
+                                }
+                            } else if channel.type != "anthropic_aws" {
+                                LabeledEditorField("API Key", text: credentialKey, secure: true)
+                            }
                             NavigationLink("多个密钥及管理凭据") { Form { ChannelSchemaFields(value: $channel.credentials, type: "ChannelCredentialsInput", path: "credentials", secure: true) }.navigationTitle("认证") }
                         }
                     }
@@ -143,7 +149,7 @@ struct ManagementEditor: View {
                 }
             } else {
                 Section("路由与协议") {
-                    TextField("排序权重", text: $channel.orderingWeight).keyboardType(.numbersAndPunctuation)
+                    LabeledEditorField("排序权重", text: $channel.orderingWeight).keyboardType(.numbersAndPunctuation)
                     NavigationLink("策略与密钥自动禁用") { Form { ChannelSchemaFields(value: $channel.policies, type: "ChannelPoliciesInput", path: "policies") }.navigationTitle("策略与密钥自动禁用") }
                     NavigationLink("自定义端点与协议") { Form { ChannelSchemaFields(value: $channel.endpoints, type: "[ChannelEndpointInput!]", path: "endpoints") }.navigationTitle("自定义端点与协议") }
                 }
@@ -165,7 +171,10 @@ struct ManagementEditor: View {
                         NavigationLink("其他高级选项") { Form { ChannelSchemaFields(value: $channel.settings, type: "ChannelSettingsInput", path: "settings") }.navigationTitle("其他高级选项") }
                     }
                 } else {
-                    Section { Button("读取现有认证与高级配置") { authorizeSecrets = true } }
+                    Section {
+                        Button("读取现有认证与高级配置") { Task { await loadSecrets() } }
+                        Text("凭据只读入当前编辑器，不保存到本地；未修改的配置保持原样。").font(.caption).foregroundStyle(.secondary)
+                    }
                 }
             }
         }
@@ -177,6 +186,23 @@ struct ManagementEditor: View {
         }
     }
     private func setting(_ key: String) -> Binding<JSON> { Binding(get: { channel.settings[key] }, set: { var s = channel.settings.object; s[key] = $0; channel.settings = .object(s) }) }
+    private var credentialKey: Binding<String> {
+        Binding(get: { channel.secretsLoaded ? channel.credentials["apiKey"].string : channel.apiKey }, set: { text in
+            if channel.secretsLoaded { var fields = channel.credentials.object; fields["apiKey"] = .string(text); channel.credentials = .object(fields) }
+            else { channel.apiKey = text }
+        })
+    }
+    private func credentialItem(_ index: Int) -> Binding<String> {
+        Binding(get: {
+            let keys = channel.credentials["apiKeys"].array
+            return keys.indices.contains(index) ? keys[index].string : ""
+        }, set: { text in
+            var keys = channel.credentials["apiKeys"].array
+            guard keys.indices.contains(index) else { return }
+            keys[index] = .string(text)
+            var fields = channel.credentials.object; fields["apiKeys"] = .array(keys); channel.credentials = .object(fields)
+        })
+    }
     private func setModels(_ models: [String]) {
         channel.supportedModels = Array(Set(models)).sorted().joined(separator: "\n")
         channel.manualModels = channel.manualModels.lines.filter { models.contains($0) }.joined(separator: "\n")
@@ -185,19 +211,19 @@ struct ManagementEditor: View {
     private var modelFields: some View {
         Group {
             Section(NSLocalizedString("基本信息", comment: "")) {
-                TextField(NSLocalizedString("名称", comment: ""), text: $model.name)
-                TextField(NSLocalizedString("模型 ID", comment: ""), text: $model.modelID)
+                LabeledEditorField("名称", text: $model.name)
+                LabeledEditorField("模型 ID", text: $model.modelID)
                     .textInputAutocapitalization(.never).autocorrectionDisabled()
-                TextField(NSLocalizedString("开发者", comment: ""), text: $model.developer)
+                LabeledEditorField("开发者", text: $model.developer)
                 Picker(NSLocalizedString("模型类型", comment: ""), selection: $model.type) {
                     ForEach(ModelType.allCases) { Text(NativeAdminLabels.value($0.rawValue)).tag($0.rawValue) }
                 }
-                TextField(NSLocalizedString("分组", comment: ""), text: $model.group)
-                TextField(NSLocalizedString("图标（Lobe Icons 名称）", comment: ""), text: $model.icon)
-                TextField(NSLocalizedString("备注", comment: ""), text: $model.remark, axis: .vertical)
+                LabeledEditorField("分组", text: $model.group)
+                LabeledEditorField("图标（Lobe Icons 名称）", text: $model.icon)
+                LabeledEditorField("备注", text: $model.remark)
             }
             Section(NSLocalizedString("路由关联", comment: "")) {
-                if creating { TextField(NSLocalizedString("上游模型 ID", comment: ""), text: $model.routeModelID) }
+                if creating { LabeledEditorField("上游模型 ID", text: $model.routeModelID) }
                 Toggle("不继承供应商设置", isOn: $model.disableInheritance)
                 Picker("负载均衡", selection: $model.loadBalancer) {
                     ForEach(["default", "adaptive", "failover", "circuit-breaker", "round-robin"], id: \.self) { Text(NativeAdminLabels.value($0)).tag($0) }
@@ -272,9 +298,10 @@ struct ManagementEditor: View {
 
     private var associationsBinding: Binding<JSON> { Binding(get: { JSON.from(model.associationsJSON) ?? .array([]) }, set: { model.associationsJSON = $0.prettyJSON; model.routeModelID = "" }) }
     private var cardBinding: Binding<JSON> { Binding(get: { JSON.from(model.modelCard) ?? .object([:]) }, set: { model.modelCard = $0.prettyJSON }) }
-    private func clearSecrets() { channel.apiKey = ""; channel.credentials = .object([:]); channel.originalCredentials = nil; channel.settings = .object([:]); channel.originalSettings = nil }
+    private func clearSecrets() { channel.apiKey = ""; channel.credentials = .object([:]); channel.originalCredentials = nil; channel.settings = .object([:]); channel.originalSettings = nil; channel.secretsLoaded = false }
     @MainActor private func loadSecrets() async {
-        loading = true; defer { loading = false }
+        guard !loading, !saving else { return }
+        loading = true; failure = nil; defer { loading = false }
         do {
             var readTarget = target
             if let source = duplicateID { readTarget = ManagementTarget(instance: target.instance, connectionRevision: target.connectionRevision, entityID: source, kind: .channel) }
@@ -298,5 +325,22 @@ struct ManagementEditor: View {
     @MainActor private func previewRoutes() async {
         loading = true; defer { loading = false }
         do { routes = try await store.managedRoutePreview(model, target: target) } catch { failure = error.localizedDescription }
+    }
+}
+
+/// A placeholder is not a field label: keep the label visible for populated values.
+struct LabeledEditorField: View {
+    let title: String
+    @Binding var text: String
+    var secure = false
+    init(_ title: String, text: Binding<String>, secure: Bool = false) {
+        self.title = obsText(title); _text = text; self.secure = secure
+    }
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(title).font(.caption).foregroundStyle(.secondary)
+            if secure { SecureField(title, text: $text).accessibilityLabel(title) }
+            else { TextField(title, text: $text, axis: .vertical).accessibilityLabel(title) }
+        }.textInputAutocapitalization(.never).autocorrectionDisabled().padding(.vertical, 3)
     }
 }

@@ -314,7 +314,6 @@ struct NativeEntityDetailView: View {
     @State private var confirmation: AdminOperation?
     @State private var confirming = false
     @State private var secret = ""
-    @State private var reveal = false
     @State private var failure: String?
     private var actions: [AdminOperation] {
         session.schema.operations.filter { $0.entity == module.entity && $0.mutation && !$0.root.hasPrefix("create") && !$0.root.hasPrefix("bulk") && $0.root != "updateAPIKeyProfiles" && $0.root != "updateProjectProfiles" && $0.root != "loadApiKeyProfileTemplate" && !duplicateStatusAction($0) }
@@ -353,12 +352,13 @@ struct NativeEntityDetailView: View {
                         Text("禁用立即停止此密钥的访问，策略和额度配置仍保留。").font(.caption).foregroundStyle(.secondary)
                     }
                     Section("API 密钥") {
-                        if secret.isEmpty { Button("显示或复制 API Key") { reveal = true } }
+                        if secret.isEmpty { Button("显示或复制 API Key") { revealSecret() } }
                         else {
                             Text(secret).font(.caption.monospaced()).textSelection(.enabled)
                             Button("复制 API Key（剪贴板含秘密）") { NativeSecretClipboard.copy(secret) }
                             Button("隐藏 API Key") { secret = "" }
                         }
+                        Text("仅对当前精确 ID 读取秘密。请注意周围环境；复制内容只在本机剪贴板保留一分钟。").font(.caption).foregroundStyle(.secondary)
                     }
                 }
                 Section("操作") {
@@ -386,15 +386,17 @@ struct NativeEntityDetailView: View {
                 }
             }
         } message: { Text(AdminOperationView.label(value)) }
-        .confirmationDialog("显示秘密", isPresented: $reveal, titleVisibility: .visible) {
-            Button("读取此目标的 API Key") {
-                session.start { secret = try await session.read("revealAPIKey", variables: .object(["id": .string(id)]))["key"].string }
-            }
-        }
         .task { if value.isNull { await load() } }
         .refreshable { await load() }
         .onDisappear { secret = "" }
         .onChange(of: session.invalidated) { invalid in if invalid { secret = ""; value = .null } }
+    }
+    private func revealSecret() {
+        session.start {
+            let revealed = try await session.read("revealAPIKey", variables: .object(["id": .string(id)]))
+            guard revealed["id"].string == id, !revealed["key"].string.isEmpty else { throw AdminError.notFound }
+            secret = revealed["key"].string
+        }
     }
     private func seed(_ op: AdminOperation) -> JSON {
         var seed: [String: JSON] = ["id": .string(id)]

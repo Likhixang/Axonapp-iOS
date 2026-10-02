@@ -1,11 +1,6 @@
 name: README Screenshots
 on:
   workflow_dispatch:
-  push:
-    paths:
-      - '.github/workflows/screenshots.yml'
-      - 'Axonhub/ReadmePreview.swift'
-      - 'AxonhubUITests/SmokeTests.swift'
 permissions:
   contents: read
 jobs:

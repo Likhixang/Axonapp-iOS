@@ -70,7 +70,7 @@ struct ObservabilityAnalyticsView: View {
                         .chartYAxis {
                             AxisMarks { value in
                                 AxisGridLine(); AxisTick()
-                                AxisValueLabel { if let number = value.as(Double.self) { Text(DisplayFormat.isTokenQuantity(chartMetric) ? DisplayFormat.compact(number) : number.formatted()) } }
+                                AxisValueLabel { if let number = value.as(Double.self) { Text(DisplayFormat.isTokenQuantity(chartMetric) ? DisplayFormat.compact(number) : DisplayFormat.number(number)) } }
                             }
                         }.frame(height: 220).accessibilityLabel(obsText("每日真实用量趋势"))
                         DisclosureGroup(obsText("每日数据表")) {
@@ -307,7 +307,7 @@ struct ObservabilityDashboardView: View {
                         .chartXAxis {
                             AxisMarks { value in
                                 AxisGridLine(); AxisTick()
-                                AxisValueLabel { if let number = value.as(Double.self) { Text(DisplayFormat.isTokenQuantity(metric.chartValue) ? DisplayFormat.compact(number) : number.formatted()) } }
+                                AxisValueLabel { if let number = value.as(Double.self) { Text(DisplayFormat.isTokenQuantity(metric.chartValue) ? DisplayFormat.compact(number) : DisplayFormat.number(number)) } }
                             }
                         }.frame(height: 260).accessibilityLabel(metric.title)
                     }
