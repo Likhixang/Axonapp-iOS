@@ -3,6 +3,14 @@ on:
   push:
     branches: ['**']
     tags: ['v*']
+    paths:
+      - 'Axonhub/**'
+      - 'AxonhubTests/**'
+      - 'AxonhubUITests/**'
+      - 'scripts/**'
+      - '!scripts/**/*.md'
+      - 'project.yml'
+      - '.github/workflows/build.yml'
   workflow_dispatch:
 permissions:
   contents: read
