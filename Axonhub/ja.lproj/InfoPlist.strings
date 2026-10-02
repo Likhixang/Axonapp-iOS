@@ -1,0 +1,2 @@
+CFBundleDisplayName = "Axonhub";
+NSLocalNetworkUsageDescription = "ローカルまたはLAN内の AxonHub AI ゲートウェイに接続";

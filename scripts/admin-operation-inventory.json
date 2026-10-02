@@ -1,0 +1,926 @@
+{
+  "revision": "939b2bc07cc05bdf7750d7ec872290d67784d13d",
+  "operations": [
+    {
+      "name": "AdminGetApiKeys",
+      "root": "apiKeys",
+      "group": "API Keys",
+      "source": "frontend/src/features/apikeys/data/apikeys.ts",
+      "verification": ""
+    },
+    {
+      "name": "AdminCreateAPIKey",
+      "root": "createAPIKey",
+      "group": "API Keys",
+      "source": "frontend/src/features/apikeys/data/apikeys.ts",
+      "verification": "detailAPIKey"
+    },
+    {
+      "name": "AdminUpdateAPIKey",
+      "root": "updateAPIKey",
+      "group": "API Keys",
+      "source": "frontend/src/features/apikeys/data/apikeys.ts",
+      "verification": "detailAPIKey"
+    },
+    {
+      "name": "AdminUpdateAPIKeyStatus",
+      "root": "updateAPIKeyStatus",
+      "group": "API Keys",
+      "source": "frontend/src/features/apikeys/data/apikeys.ts",
+      "verification": "detailAPIKey"
+    },
+    {
+      "name": "AdminUpdateAPIKeyProfiles",
+      "root": "updateAPIKeyProfiles",
+      "group": "API Keys",
+      "source": "frontend/src/features/apikeys/data/apikeys.ts",
+      "verification": "detailAPIKey"
+    },
+    {
+      "name": "AdminBulkDisableAPIKeys",
+      "root": "bulkDisableAPIKeys",
+      "group": "API Keys",
+      "source": "frontend/src/features/apikeys/data/apikeys.ts",
+      "verification": "detailAPIKey"
+    },
+    {
+      "name": "AdminBulkEnableAPIKeys",
+      "root": "bulkEnableAPIKeys",
+      "group": "API Keys",
+      "source": "frontend/src/features/apikeys/data/apikeys.ts",
+      "verification": "detailAPIKey"
+    },
+    {
+      "name": "AdminBulkArchiveAPIKeys",
+      "root": "bulkArchiveAPIKeys",
+      "group": "API Keys",
+      "source": "frontend/src/features/apikeys/data/apikeys.ts",
+      "verification": "detailAPIKey"
+    },
+    {
+      "name": "AdminRotateAPIKey",
+      "root": "rotateAPIKey",
+      "group": "API Keys",
+      "source": "frontend/src/features/apikeys/data/apikeys.ts",
+      "verification": "detailAPIKey"
+    },
+    {
+      "name": "AdminAPIKeyQuotaUsages",
+      "root": "apiKeyQuotaUsages",
+      "group": "API Keys",
+      "source": "frontend/src/features/apikeys/data/apikeys.ts",
+      "verification": ""
+    },
+    {
+      "name": "AdminAPIKeyTokenUsageStats",
+      "root": "apiKeyTokenUsageStats",
+      "group": "API Keys",
+      "source": "frontend/src/features/apikeys/data/apikeys.ts",
+      "verification": ""
+    },
+    {
+      "name": "AdminApiKeyProfileTemplates",
+      "root": "apiKeyProfileTemplates",
+      "group": "API Keys",
+      "source": "frontend/src/features/apikeys/data/apikeys.ts",
+      "verification": ""
+    },
+    {
+      "name": "AdminCreateApiKeyProfileTemplate",
+      "root": "createApiKeyProfileTemplate",
+      "group": "API Key Templates",
+      "source": "frontend/src/features/apikeys/data/apikeys.ts",
+      "verification": "detailAPIKeyProfileTemplate"
+    },
+    {
+      "name": "AdminUpdateApiKeyProfileTemplate",
+      "root": "updateApiKeyProfileTemplate",
+      "group": "API Key Templates",
+      "source": "frontend/src/features/apikeys/data/apikeys.ts",
+      "verification": "detailAPIKeyProfileTemplate"
+    },
+    {
+      "name": "AdminDeleteApiKeyProfileTemplate",
+      "root": "deleteApiKeyProfileTemplate",
+      "group": "API Key Templates",
+      "source": "frontend/src/features/apikeys/data/apikeys.ts",
+      "verification": "detailAPIKeyProfileTemplate"
+    },
+    {
+      "name": "AdminLoadApiKeyProfileTemplate",
+      "root": "loadApiKeyProfileTemplate",
+      "group": "API Keys",
+      "source": "frontend/src/features/apikeys/data/apikeys.ts",
+      "verification": "detailAPIKey"
+    },
+    {
+      "name": "AdminDataStorages",
+      "root": "dataStorages",
+      "group": "Data Storage",
+      "source": "frontend/src/features/data-storages/data/data-storages.ts",
+      "verification": ""
+    },
+    {
+      "name": "AdminCreateDataStorage",
+      "root": "createDataStorage",
+      "group": "Data Storage",
+      "source": "frontend/src/features/data-storages/data/data-storages.ts",
+      "verification": "detailDataStorage"
+    },
+    {
+      "name": "AdminUpdateDataStorage",
+      "root": "updateDataStorage",
+      "group": "Data Storage",
+      "source": "frontend/src/features/data-storages/data/data-storages.ts",
+      "verification": "detailDataStorage"
+    },
+    {
+      "name": "AdminAddUserToProject",
+      "root": "addUserToProject",
+      "group": "Project Users",
+      "source": "frontend/src/features/proejct-users/data/users.ts",
+      "verification": "detailProject"
+    },
+    {
+      "name": "AdminRemoveUserFromProject",
+      "root": "removeUserFromProject",
+      "group": "Project Users",
+      "source": "frontend/src/features/proejct-users/data/users.ts",
+      "verification": "detailProject"
+    },
+    {
+      "name": "AdminUpdateProjectUser",
+      "root": "updateProjectUser",
+      "group": "Project Users",
+      "source": "frontend/src/features/proejct-users/data/users.ts",
+      "verification": "detailProject"
+    },
+    {
+      "name": "AdminAllUsers",
+      "root": "users",
+      "group": "Project Users",
+      "source": "frontend/src/features/proejct-users/data/users.ts",
+      "verification": ""
+    },
+    {
+      "name": "AdminGetProjectRoles",
+      "root": "roles",
+      "group": "Project Roles",
+      "source": "frontend/src/features/project-roles/data/roles.ts",
+      "verification": ""
+    },
+    {
+      "name": "AdminCreateRole",
+      "root": "createRole",
+      "group": "Roles",
+      "source": "frontend/src/features/project-roles/data/roles.ts",
+      "verification": "detailRole"
+    },
+    {
+      "name": "AdminUpdateRole",
+      "root": "updateRole",
+      "group": "Roles",
+      "source": "frontend/src/features/project-roles/data/roles.ts",
+      "verification": "detailRole"
+    },
+    {
+      "name": "AdminDeleteRole",
+      "root": "deleteRole",
+      "group": "Roles",
+      "source": "frontend/src/features/project-roles/data/roles.ts",
+      "verification": "detailRole"
+    },
+    {
+      "name": "AdminGetProjects",
+      "root": "projects",
+      "group": "Projects",
+      "source": "frontend/src/features/projects/data/projects.ts",
+      "verification": ""
+    },
+    {
+      "name": "AdminCreateProject",
+      "root": "createProject",
+      "group": "Projects",
+      "source": "frontend/src/features/projects/data/projects.ts",
+      "verification": "detailProject"
+    },
+    {
+      "name": "AdminUpdateProject",
+      "root": "updateProject",
+      "group": "Projects",
+      "source": "frontend/src/features/projects/data/projects.ts",
+      "verification": "detailProject"
+    },
+    {
+      "name": "AdminUpdateProjectStatus",
+      "root": "updateProjectStatus",
+      "group": "Projects",
+      "source": "frontend/src/features/projects/data/projects.ts",
+      "verification": "detailProject"
+    },
+    {
+      "name": "AdminDeleteProject",
+      "root": "deleteProject",
+      "group": "Projects",
+      "source": "frontend/src/features/projects/data/projects.ts",
+      "verification": "detailProject"
+    },
+    {
+      "name": "AdminMyProjects",
+      "root": "myProjects",
+      "group": "Projects",
+      "source": "frontend/src/features/projects/data/projects.ts",
+      "verification": ""
+    },
+    {
+      "name": "AdminUpdateProjectProfiles",
+      "root": "updateProjectProfiles",
+      "group": "Projects",
+      "source": "frontend/src/features/projects/data/projects.ts",
+      "verification": "detailProject"
+    },
+    {
+      "name": "AdminGetPromptProtectionRules",
+      "root": "promptProtectionRules",
+      "group": "Prompt Protection",
+      "source": "frontend/src/features/prompt-protection-rules/data/rules.ts",
+      "verification": ""
+    },
+    {
+      "name": "AdminCreatePromptProtectionRule",
+      "root": "createPromptProtectionRule",
+      "group": "Prompt Protection",
+      "source": "frontend/src/features/prompt-protection-rules/data/rules.ts",
+      "verification": "detailPromptProtectionRule"
+    },
+    {
+      "name": "AdminUpdatePromptProtectionRule",
+      "root": "updatePromptProtectionRule",
+      "group": "Prompt Protection",
+      "source": "frontend/src/features/prompt-protection-rules/data/rules.ts",
+      "verification": "detailPromptProtectionRule"
+    },
+    {
+      "name": "AdminDeletePromptProtectionRule",
+      "root": "deletePromptProtectionRule",
+      "group": "Prompt Protection",
+      "source": "frontend/src/features/prompt-protection-rules/data/rules.ts",
+      "verification": "detailPromptProtectionRule"
+    },
+    {
+      "name": "AdminUpdatePromptProtectionRuleStatus",
+      "root": "updatePromptProtectionRuleStatus",
+      "group": "Prompt Protection",
+      "source": "frontend/src/features/prompt-protection-rules/data/rules.ts",
+      "verification": "detailPromptProtectionRule"
+    },
+    {
+      "name": "AdminBulkDeletePromptProtectionRules",
+      "root": "bulkDeletePromptProtectionRules",
+      "group": "Prompt Protection",
+      "source": "frontend/src/features/prompt-protection-rules/data/rules.ts",
+      "verification": "detailPromptProtectionRule"
+    },
+    {
+      "name": "AdminBulkEnablePromptProtectionRules",
+      "root": "bulkEnablePromptProtectionRules",
+      "group": "Prompt Protection",
+      "source": "frontend/src/features/prompt-protection-rules/data/rules.ts",
+      "verification": "detailPromptProtectionRule"
+    },
+    {
+      "name": "AdminBulkDisablePromptProtectionRules",
+      "root": "bulkDisablePromptProtectionRules",
+      "group": "Prompt Protection",
+      "source": "frontend/src/features/prompt-protection-rules/data/rules.ts",
+      "verification": "detailPromptProtectionRule"
+    },
+    {
+      "name": "AdminPreviewPromptProtectionRule",
+      "root": "previewPromptProtectionRule",
+      "group": "Prompt Protection",
+      "source": "frontend/src/features/prompt-protection-rules/data/rules.ts",
+      "verification": ""
+    },
+    {
+      "name": "AdminGetPrompts",
+      "root": "prompts",
+      "group": "Prompts",
+      "source": "frontend/src/features/prompts/data/prompts.ts",
+      "verification": ""
+    },
+    {
+      "name": "AdminCreatePrompt",
+      "root": "createPrompt",
+      "group": "Prompts",
+      "source": "frontend/src/features/prompts/data/prompts.ts",
+      "verification": "detailPrompt"
+    },
+    {
+      "name": "AdminUpdatePrompt",
+      "root": "updatePrompt",
+      "group": "Prompts",
+      "source": "frontend/src/features/prompts/data/prompts.ts",
+      "verification": "detailPrompt"
+    },
+    {
+      "name": "AdminDeletePrompt",
+      "root": "deletePrompt",
+      "group": "Prompts",
+      "source": "frontend/src/features/prompts/data/prompts.ts",
+      "verification": "detailPrompt"
+    },
+    {
+      "name": "AdminUpdatePromptStatus",
+      "root": "updatePromptStatus",
+      "group": "Prompts",
+      "source": "frontend/src/features/prompts/data/prompts.ts",
+      "verification": "detailPrompt"
+    },
+    {
+      "name": "AdminBulkDeletePrompts",
+      "root": "bulkDeletePrompts",
+      "group": "Prompts",
+      "source": "frontend/src/features/prompts/data/prompts.ts",
+      "verification": "detailPrompt"
+    },
+    {
+      "name": "AdminBulkDisablePrompts",
+      "root": "bulkDisablePrompts",
+      "group": "Prompts",
+      "source": "frontend/src/features/prompts/data/prompts.ts",
+      "verification": "detailPrompt"
+    },
+    {
+      "name": "AdminBulkEnablePrompts",
+      "root": "bulkEnablePrompts",
+      "group": "Prompts",
+      "source": "frontend/src/features/prompts/data/prompts.ts",
+      "verification": "detailPrompt"
+    },
+    {
+      "name": "AdminBulkDeleteRoles",
+      "root": "bulkDeleteRoles",
+      "group": "Roles",
+      "source": "frontend/src/features/roles/data/roles.ts",
+      "verification": "detailRole"
+    },
+    {
+      "name": "AdminSystemVersion",
+      "root": "systemVersion",
+      "group": "System Settings",
+      "source": "frontend/src/features/system/data/system.ts",
+      "verification": ""
+    },
+    {
+      "name": "AdminCheckForUpdate",
+      "root": "checkForUpdate",
+      "group": "System Settings",
+      "source": "frontend/src/features/system/data/system.ts",
+      "verification": ""
+    },
+    {
+      "name": "AdminGetCacheDiagnostics",
+      "root": "getCacheDiagnostics",
+      "group": "System Settings",
+      "source": "frontend/src/features/system/data/system.ts",
+      "verification": ""
+    },
+    {
+      "name": "AdminClearCache",
+      "root": "clearCache",
+      "group": "System Settings",
+      "source": "frontend/src/features/system/data/system.ts",
+      "verification": "getCacheDiagnostics"
+    },
+    {
+      "name": "AdminBrandSettings",
+      "root": "brandSettings",
+      "group": "System Settings",
+      "source": "frontend/src/features/system/data/system.ts",
+      "verification": ""
+    },
+    {
+      "name": "AdminStoragePolicy",
+      "root": "storagePolicy",
+      "group": "System Settings",
+      "source": "frontend/src/features/system/data/system.ts",
+      "verification": ""
+    },
+    {
+      "name": "AdminUpdateBrandSettings",
+      "root": "updateBrandSettings",
+      "group": "System Settings",
+      "source": "frontend/src/features/system/data/system.ts",
+      "verification": "brandSettings"
+    },
+    {
+      "name": "AdminUpdateStoragePolicy",
+      "root": "updateStoragePolicy",
+      "group": "System Settings",
+      "source": "frontend/src/features/system/data/system.ts",
+      "verification": "storagePolicy"
+    },
+    {
+      "name": "AdminRetryPolicy",
+      "root": "retryPolicy",
+      "group": "System Settings",
+      "source": "frontend/src/features/system/data/system.ts",
+      "verification": ""
+    },
+    {
+      "name": "AdminUpdateRetryPolicy",
+      "root": "updateRetryPolicy",
+      "group": "System Settings",
+      "source": "frontend/src/features/system/data/system.ts",
+      "verification": "retryPolicy"
+    },
+    {
+      "name": "AdminWebhookNotifierConfig",
+      "root": "webhookNotifierConfig",
+      "group": "System Settings",
+      "source": "frontend/src/features/system/data/system.ts",
+      "verification": ""
+    },
+    {
+      "name": "AdminUpdateWebhookNotifierConfig",
+      "root": "updateWebhookNotifierConfig",
+      "group": "System Settings",
+      "source": "frontend/src/features/system/data/system.ts",
+      "verification": "revealwebhookNotifierConfig"
+    },
+    {
+      "name": "AdminDefaultDataStorageID",
+      "root": "defaultDataStorageID",
+      "group": "System Settings",
+      "source": "frontend/src/features/system/data/system.ts",
+      "verification": ""
+    },
+    {
+      "name": "AdminUpdateDefaultDataStorage",
+      "root": "updateDefaultDataStorage",
+      "group": "System Settings",
+      "source": "frontend/src/features/system/data/system.ts",
+      "verification": "defaultDataStorageID"
+    },
+    {
+      "name": "AdminOnboardingInfo",
+      "root": "onboardingInfo",
+      "group": "System Settings",
+      "source": "frontend/src/features/system/data/system.ts",
+      "verification": ""
+    },
+    {
+      "name": "AdminCompleteOnboarding",
+      "root": "completeOnboarding",
+      "group": "System Settings",
+      "source": "frontend/src/features/system/data/system.ts",
+      "verification": "onboardingInfo"
+    },
+    {
+      "name": "AdminCompleteSystemModelSettingOnboarding",
+      "root": "completeSystemModelSettingOnboarding",
+      "group": "System Settings",
+      "source": "frontend/src/features/system/data/system.ts",
+      "verification": "onboardingInfo"
+    },
+    {
+      "name": "AdminCompleteAutoDisableChannelOnboarding",
+      "root": "completeAutoDisableChannelOnboarding",
+      "group": "System Settings",
+      "source": "frontend/src/features/system/data/system.ts",
+      "verification": "onboardingInfo"
+    },
+    {
+      "name": "AdminTriggerGcCleanup",
+      "root": "triggerGcCleanup",
+      "group": "System Settings",
+      "source": "frontend/src/features/system/data/system.ts",
+      "verification": "previewGcCleanup"
+    },
+    {
+      "name": "AdminPreviewGcCleanup",
+      "root": "previewGcCleanup",
+      "group": "System Settings",
+      "source": "frontend/src/features/system/data/system.ts",
+      "verification": ""
+    },
+    {
+      "name": "AdminModelSettings",
+      "root": "systemModelSettings",
+      "group": "System Settings",
+      "source": "frontend/src/features/system/data/system.ts",
+      "verification": ""
+    },
+    {
+      "name": "AdminUpdateModelSettings",
+      "root": "updateSystemModelSettings",
+      "group": "System Settings",
+      "source": "frontend/src/features/system/data/system.ts",
+      "verification": "systemModelSettings"
+    },
+    {
+      "name": "AdminSystemChannelSettings",
+      "root": "systemChannelSettings",
+      "group": "System Settings",
+      "source": "frontend/src/features/system/data/system.ts",
+      "verification": ""
+    },
+    {
+      "name": "AdminUpdateChannelSettings",
+      "root": "updateSystemChannelSettings",
+      "group": "System Settings",
+      "source": "frontend/src/features/system/data/system.ts",
+      "verification": "systemChannelSettings"
+    },
+    {
+      "name": "AdminSystemGeneralSettings",
+      "root": "systemGeneralSettings",
+      "group": "System Settings",
+      "source": "frontend/src/features/system/data/system.ts",
+      "verification": ""
+    },
+    {
+      "name": "AdminUpdateSystemGeneralSettings",
+      "root": "updateSystemGeneralSettings",
+      "group": "System Settings",
+      "source": "frontend/src/features/system/data/system.ts",
+      "verification": "systemGeneralSettings"
+    },
+    {
+      "name": "AdminVideoStorageSettings",
+      "root": "videoStorageSettings",
+      "group": "System Settings",
+      "source": "frontend/src/features/system/data/system.ts",
+      "verification": ""
+    },
+    {
+      "name": "AdminUpdateVideoStorageSettings",
+      "root": "updateVideoStorageSettings",
+      "group": "System Settings",
+      "source": "frontend/src/features/system/data/system.ts",
+      "verification": "videoStorageSettings"
+    },
+    {
+      "name": "AdminSecuritySettings",
+      "root": "securitySettings",
+      "group": "System Settings",
+      "source": "frontend/src/features/system/data/system.ts",
+      "verification": ""
+    },
+    {
+      "name": "AdminUpdateSecuritySettings",
+      "root": "updateSecuritySettings",
+      "group": "System Settings",
+      "source": "frontend/src/features/system/data/system.ts",
+      "verification": "securitySettings"
+    },
+    {
+      "name": "AdminBackup",
+      "root": "backup",
+      "group": "System Settings",
+      "source": "frontend/src/features/system/data/system.ts",
+      "verification": "systemVersion"
+    },
+    {
+      "name": "AdminRestore",
+      "root": "restore",
+      "group": "System Settings",
+      "source": "frontend/src/features/system/data/system.ts",
+      "verification": ""
+    },
+    {
+      "name": "AdminAutoBackupSettings",
+      "root": "autoBackupSettings",
+      "group": "System Settings",
+      "source": "frontend/src/features/system/data/system.ts",
+      "verification": ""
+    },
+    {
+      "name": "AdminUpdateAutoBackupSettings",
+      "root": "updateAutoBackupSettings",
+      "group": "System Settings",
+      "source": "frontend/src/features/system/data/system.ts",
+      "verification": "autoBackupSettings"
+    },
+    {
+      "name": "AdminTriggerAutoBackup",
+      "root": "triggerAutoBackup",
+      "group": "System Settings",
+      "source": "frontend/src/features/system/data/system.ts",
+      "verification": "autoBackupSettings"
+    },
+    {
+      "name": "AdminProxyPresets",
+      "root": "proxyPresets",
+      "group": "System Settings",
+      "source": "frontend/src/features/system/data/system.ts",
+      "verification": ""
+    },
+    {
+      "name": "AdminSaveProxyPreset",
+      "root": "saveProxyPreset",
+      "group": "System Settings",
+      "source": "frontend/src/features/system/data/system.ts",
+      "verification": "revealproxyPresets"
+    },
+    {
+      "name": "AdminDeleteProxyPreset",
+      "root": "deleteProxyPreset",
+      "group": "System Settings",
+      "source": "frontend/src/features/system/data/system.ts",
+      "verification": "proxyPresets"
+    },
+    {
+      "name": "AdminUserAgentPassThroughSettings",
+      "root": "userAgentPassThroughSettings",
+      "group": "System Settings",
+      "source": "frontend/src/features/system/data/system.ts",
+      "verification": ""
+    },
+    {
+      "name": "AdminUpdateUserAgentPassThroughSettings",
+      "root": "updateUserAgentPassThroughSettings",
+      "group": "System Settings",
+      "source": "frontend/src/features/system/data/system.ts",
+      "verification": "userAgentPassThroughSettings"
+    },
+    {
+      "name": "AdminPassThroughSettings",
+      "root": "passThroughSettings",
+      "group": "System Settings",
+      "source": "frontend/src/features/system/data/system.ts",
+      "verification": ""
+    },
+    {
+      "name": "AdminUpdatePassThroughSettings",
+      "root": "updatePassThroughSettings",
+      "group": "System Settings",
+      "source": "frontend/src/features/system/data/system.ts",
+      "verification": "passThroughSettings"
+    },
+    {
+      "name": "AdminUsageCostInjectionSettings",
+      "root": "usageCostInjectionSettings",
+      "group": "System Settings",
+      "source": "frontend/src/features/system/data/system.ts",
+      "verification": ""
+    },
+    {
+      "name": "AdminUpdateUsageCostInjectionSettings",
+      "root": "updateUsageCostInjectionSettings",
+      "group": "System Settings",
+      "source": "frontend/src/features/system/data/system.ts",
+      "verification": "usageCostInjectionSettings"
+    },
+    {
+      "name": "AdminQuotaEnforcementSettings",
+      "root": "quotaEnforcementSettings",
+      "group": "System Settings",
+      "source": "frontend/src/features/system/data/system.ts",
+      "verification": ""
+    },
+    {
+      "name": "AdminUpdateQuotaEnforcementSettings",
+      "root": "updateQuotaEnforcementSettings",
+      "group": "System Settings",
+      "source": "frontend/src/features/system/data/system.ts",
+      "verification": "quotaEnforcementSettings"
+    },
+    {
+      "name": "AdminProviderQuotaCollectionSettings",
+      "root": "providerQuotaCollectionSettings",
+      "group": "System Settings",
+      "source": "frontend/src/features/system/data/system.ts",
+      "verification": ""
+    },
+    {
+      "name": "AdminUpdateProviderQuotaCollectionSettings",
+      "root": "updateProviderQuotaCollectionSettings",
+      "group": "System Settings",
+      "source": "frontend/src/features/system/data/system.ts",
+      "verification": "providerQuotaCollectionSettings"
+    },
+    {
+      "name": "AdminCatalogSettings",
+      "root": "catalogSettings",
+      "group": "System Settings",
+      "source": "frontend/src/features/system/data/system.ts",
+      "verification": ""
+    },
+    {
+      "name": "AdminUpdateCatalogSettings",
+      "root": "updateCatalogSettings",
+      "group": "System Settings",
+      "source": "frontend/src/features/system/data/system.ts",
+      "verification": "catalogSettings"
+    },
+    {
+      "name": "AdminAllScopes",
+      "root": "allScopes",
+      "group": "Roles",
+      "source": "frontend/src/gql/roles.ts",
+      "verification": ""
+    },
+    {
+      "name": "AdminMe",
+      "root": "me",
+      "group": "Account",
+      "source": "frontend/src/gql/users.ts",
+      "verification": ""
+    },
+    {
+      "name": "AdminCreateUser",
+      "root": "createUser",
+      "group": "Users",
+      "source": "frontend/src/gql/users.ts",
+      "verification": "detailUser"
+    },
+    {
+      "name": "AdminUpdateUser",
+      "root": "updateUser",
+      "group": "Users",
+      "source": "frontend/src/gql/users.ts",
+      "verification": "detailUser"
+    },
+    {
+      "name": "AdminUpdateUserStatus",
+      "root": "updateUserStatus",
+      "group": "Users",
+      "source": "frontend/src/gql/users.ts",
+      "verification": "detailUser"
+    },
+    {
+      "name": "AdminDeleteUser",
+      "root": "deleteUser",
+      "group": "Users",
+      "source": "frontend/src/gql/users.ts",
+      "verification": "detailUser"
+    },
+    {
+      "name": "AdminSystemStatus",
+      "root": "systemStatus",
+      "group": "Users",
+      "source": "frontend/src/gql/users.ts",
+      "verification": ""
+    },
+    {
+      "name": "AdminUpdateMe",
+      "root": "updateMe",
+      "group": "Account",
+      "source": "frontend/src/gql/users.ts",
+      "verification": "me"
+    },
+    {
+      "name": "AdminUpdateMyPassword",
+      "root": "updateMyPassword",
+      "group": "Account",
+      "source": "frontend/src/gql/users.ts",
+      "verification": "me"
+    },
+    {
+      "name": "AdminUnlinkOIDCIdentity",
+      "root": "unlinkOIDCIdentity",
+      "group": "Account",
+      "source": "frontend/src/gql/users.ts",
+      "verification": "me"
+    },
+    {
+      "name": "AdminProjectUsers",
+      "root": "node",
+      "group": "Project Users",
+      "source": "frontend/src/features/proejct-users/data/users.ts",
+      "verification": ""
+    },
+    {
+      "name": "AdminDetailAPIKey",
+      "root": "node",
+      "group": "Internal",
+      "source": "SDL node interface + official frontend detail fields",
+      "verification": ""
+    },
+    {
+      "name": "AdminDetailAPIKeyProfileTemplate",
+      "root": "node",
+      "group": "Internal",
+      "source": "SDL node interface + official frontend detail fields",
+      "verification": ""
+    },
+    {
+      "name": "AdminDetailUser",
+      "root": "node",
+      "group": "Internal",
+      "source": "SDL node interface + official frontend detail fields",
+      "verification": ""
+    },
+    {
+      "name": "AdminDetailRole",
+      "root": "node",
+      "group": "Internal",
+      "source": "SDL node interface + official frontend detail fields",
+      "verification": ""
+    },
+    {
+      "name": "AdminDetailProject",
+      "root": "node",
+      "group": "Internal",
+      "source": "SDL node interface + official frontend detail fields",
+      "verification": ""
+    },
+    {
+      "name": "AdminDetailDataStorage",
+      "root": "node",
+      "group": "Internal",
+      "source": "SDL node interface + official frontend detail fields",
+      "verification": ""
+    },
+    {
+      "name": "AdminDetailPrompt",
+      "root": "node",
+      "group": "Internal",
+      "source": "SDL node interface + official frontend detail fields",
+      "verification": ""
+    },
+    {
+      "name": "AdminDetailPromptProtectionRule",
+      "root": "node",
+      "group": "Internal",
+      "source": "SDL node interface + official frontend detail fields",
+      "verification": ""
+    },
+    {
+      "name": "AdminRevealAPIKey",
+      "root": "node",
+      "group": "Internal",
+      "source": "SDL; user-initiated secret reveal only",
+      "verification": ""
+    },
+    {
+      "name": "AdminRevealWebhookNotifierConfig",
+      "root": "webhookNotifierConfig",
+      "group": "Internal",
+      "source": "Official frontend; explicit user secret read",
+      "verification": ""
+    },
+    {
+      "name": "AdminRevealProxyPresets",
+      "root": "proxyPresets",
+      "group": "Internal",
+      "source": "Official frontend; explicit user secret read",
+      "verification": ""
+    },
+    {
+      "name": "AdminProvidersCatalog",
+      "root": "providersCatalog",
+      "group": "System Settings",
+      "source": "Official beta10 SDL API",
+      "verification": ""
+    },
+    {
+      "name": "AdminRefreshProvidersCatalog",
+      "root": "refreshProvidersCatalog",
+      "group": "System Settings",
+      "source": "Official beta10 SDL API",
+      "verification": "providersCatalog"
+    }
+  ],
+  "businessSources": [
+    "internal/server/biz/api_key.go",
+    "internal/server/biz/api_key_profile_template.go",
+    "internal/server/biz/user.go",
+    "internal/server/biz/role.go",
+    "internal/server/biz/project.go",
+    "internal/server/biz/prompt.go",
+    "internal/server/biz/prompt_protection_rule.go",
+    "internal/server/biz/data_storage.go",
+    "internal/server/biz/system.go",
+    "internal/server/biz/system_proxy.go",
+    "internal/server/biz/catalog_settings.go",
+    "internal/server/biz/provider_quota_settings.go"
+  ],
+  "scopeGaps": [
+    "API Key template export/import/cross-project copy UI not implemented; template CRUD/load/profile editing is implemented",
+    "OIDC link requires external authorization redirect, intentionally not embedded; native unlink and account identity read implemented",
+    "Restore multipart request/UI implemented, broad per-object restore readback NOT implemented: reports server response + exact instance read only",
+    "Provider quota polling mutation not included (channel/quota agent ownership); quota collection/enforcement settings covered",
+    "REST system settings metadata request absent from this pinned official frontend/routes; no invented generic SET endpoint",
+    "No Swift/Xcode typecheck or live API mutation run on Linux; only offline contract/syntax/safety checks",
+    "Recursive form is unbounded; readback conditions selected to 16 levels, detected __typename-only tail refuses writes to avoid truncation",
+    "New localization strings await parent localization pass"
+  ],
+  "constraints": [
+    "Noauth keys cannot edit/rotate; user and personal keys do not support scopes",
+    "System full-value inputs preload baseline and preserve unrelated fields",
+    "DataStorage merge replaces entire nonsecret S3/GCS/WebDAV subobject; hydrate from exact detail",
+    "Optional null on business writes rejected unless explicit clear field; SDL null alone is not clear",
+    "Role update ignores level/projectID, project update ignores profiles/status; dedicated mutations used"
+  ],
+  "nativeEntry": "AdminCenterView(store: AxonStore)",
+  "restoreContract": "AdminRestore + multipart operations/map/0 file; dedicated native AdminRestoreView",
+  "verificationLimits": [
+    "Write-only storage credentials/user passwords are excluded from string equality and UI explains limitation",
+    "Async GC/auto backup/cache/password report accepted/unproved, never fully verified",
+    "No direct Swift runtime/test execution; parent must typecheck/build",
+    "Existing api-contract-fixtures.json intentionally unchanged; merge admin-contract-fixtures.json before global validator"
+  ]
+}

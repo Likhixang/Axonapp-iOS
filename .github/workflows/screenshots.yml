@@ -1,0 +1,63 @@
+name: README Screenshots
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/screenshots.yml'
+      - 'Axonhub/ReadmePreview.swift'
+      - 'AxonhubUITests/SmokeTests.swift'
+permissions:
+  contents: read
+jobs:
+  screenshots:
+    runs-on: macos-15
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - name: Prepare Xcode and simulator
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import glob, subprocess
+          apps = sorted(glob.glob('/Applications/Xcode_26*.app'))
+          if not apps:
+              raise SystemExit('Xcode 26 missing')
+          subprocess.run(['sudo', 'xcode-select', '-s', apps[-1] + '/Contents/Developer'], check=True)
+          PY
+          brew install xcodegen
+          xcodegen generate
+          python3 - <<'PY'
+          import json, os, subprocess
+          devices = json.loads(subprocess.check_output(['xcrun', 'simctl', 'list', 'devices', 'available', '-j']))['devices']
+          choices = [(runtime, device) for runtime, group in devices.items() if 'iOS-26' in runtime
+                     for device in group if device['name'] in ['iPhone 17 Pro', 'iPhone 16 Pro']]
+          if not choices:
+              raise SystemExit('iOS 26 iPhone simulator missing')
+          _, device = sorted(choices, key=lambda pair: pair[0])[-1]
+          with open(os.environ['GITHUB_ENV'], 'a') as file:
+              file.write('SIMULATOR_ID=' + device['udid'] + '\n')
+          subprocess.run(['xcrun', 'simctl', 'boot', device['udid']], check=True)
+          subprocess.run(['xcrun', 'simctl', 'bootstatus', device['udid'], '-b'], check=True)
+          subprocess.run(['xcrun', 'simctl', 'status_bar', device['udid'], 'override', '--time', '9:41',
+                          '--dataNetwork', 'wifi', '--wifiMode', 'active', '--wifiBars', '3',
+                          '--batteryState', 'charged', '--batteryLevel', '100'], check=True)
+          PY
+      - name: Capture Chinese and English screens
+        run: |
+          set -euo pipefail
+          xcodebuild test -project Axonhub.xcodeproj -scheme Axonhub -configuration Debug \
+            -destination "platform=iOS Simulator,id=$SIMULATOR_ID" \
+            -only-testing:AxonhubUITests/SmokeTests/testReadmeScreenshots \
+            -parallel-testing-enabled NO -resultBundlePath "$RUNNER_TEMP/Readme.xcresult" \
+            CODE_SIGNING_ALLOWED=NO | tee "$RUNNER_TEMP/screenshots.log"
+      - name: Export captured screens
+        if: always()
+        run: xcrun xcresulttool export attachments --path "$RUNNER_TEMP/Readme.xcresult" --output-path "$RUNNER_TEMP/attachments"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: readme-screenshots
+          path: |
+            ${{ runner.temp }}/attachments
+            ${{ runner.temp }}/screenshots.log
+          if-no-files-found: error
