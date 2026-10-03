@@ -67,7 +67,7 @@ struct ChannelDiagnosticsView: View {
             if let message = message { Text(message).font(.caption) }
         }.navigationTitle("渠道诊断").disabled(busy || store.managementBusy)
         .task { await reload(); do { try observation.bind(store, expected: target.instance) } catch { message = error.localizedDescription } }
-        .confirmationDialog("确认重置配额", isPresented: $confirmation, titleVisibility: .visible) {
+        .alert("确认重置配额", isPresented: $confirmation) {
             Button("重置") { Task { busy = true; defer { busy = false }; do {
                 let cli = try store.beginManagement(target); defer { store.endManagement() }
                 guard let id = target.entityID else { throw ManagementError.changedTarget }
@@ -76,6 +76,7 @@ struct ChannelDiagnosticsView: View {
                 try store.validateTarget(target)
                 message = obsText("重置已提交，配额采集需等待上游更新。")
             } catch { message = error.localizedDescription } } }
+            Button("取消", role: .cancel) { }
         } message: { Text(target.instance.name + " · " + target.instance.address) }
     }
     @MainActor private func reload() async {

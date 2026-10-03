@@ -54,7 +54,7 @@ private struct AdminWorkspaceView: View {
                         ForEach(projectOptions, id: \.self) { project in
                             Text(project["name"].string).tag(project["id"].string)
                         }
-                    }
+                    }.pickerStyle(.menu)
                     if session.invalidated {
                         Text(AdminError.changedTarget.localizedDescription).foregroundStyle(.red)
                         Button("重新绑定当前实例") { owner.rebind(projectID: projectID) }
@@ -205,7 +205,6 @@ struct AdminOperationView: View {
             Section("绑定目标") {
                 Text(session.connection.instance.name)
                 Text(session.connection.projectID.flatMap { session.store.entityNames.names[$0] } ?? NSLocalizedString("系统作用域", comment: "")).font(.caption)
-                Text(operation.title).font(.caption.monospaced())
             }
             if !operation.variables.isEmpty {
                 Section("输入") {
@@ -220,8 +219,6 @@ struct AdminOperationView: View {
                             else { loadBaseline() }
                         }.disabled(session.busy || session.invalidated)
                     }
-                    Text("可选字段省略表示不提交；清空请使用明确 clear 字段。已读取值仅用于当前编辑，不写入本地偏好。")
-                        .font(.caption).foregroundStyle(.secondary)
                 }
             }
             if operation.root == "saveProxyPreset" {
@@ -229,7 +226,7 @@ struct AdminOperationView: View {
                     .font(.caption).foregroundStyle(.orange)
             }
             if operation.root == "updateDataStorage" {
-                Text("更换存储凭据为只写操作，服务端不返回凭据。提交后仅验证目标及非秘密配置，不宣称秘密逐字验证。")
+                Text("更换存储凭据为只写操作，服务端不返回凭据。")
                     .font(.caption).foregroundStyle(.secondary)
             }
             if let localError = localError { Section { Text(localError).foregroundStyle(.red) } }
@@ -294,17 +291,17 @@ struct AdminOperationView: View {
         }
         .navigationTitle(operation.title)
         .disabled(session.invalidated)
-        .confirmationDialog("确认破坏性操作", isPresented: $confirmation, titleVisibility: .visible) {
+        .alert("确认破坏性操作", isPresented: $confirmation) {
             Button("确认执行", role: .destructive) { perform() }
             Button("取消", role: .cancel) { }
         } message: {
             Text(operation.title + "\n" + session.connection.instance.name + "\n" + Self.targetSummary(variables, projectID: session.connection.projectID) + "\n" + NSLocalizedString("撤销、删除、重生成或清空可能不可恢复，旧凭据可能立即失效。", comment: ""))
         }
-        .confirmationDialog("读取配置中的秘密", isPresented: $secretConfirmation, titleVisibility: .visible) {
+        .alert("读取配置中的秘密", isPresented: $secretConfirmation) {
             Button("读取并仅在当前表单中使用") { secretAccess = true; loadBaseline() }
             Button("取消", role: .cancel) { }
         } message: { Text("秘密将进入内存中的 SecureField，不自动展示、不记录日志、不写入偏好。请确认当前实例。") }
-        .confirmationDialog("显示配置秘密", isPresented: $revealResultConfirmation, titleVisibility: .visible) {
+        .alert("显示配置秘密", isPresented: $revealResultConfirmation) {
             Button("读取并显示") {
                 session.start {
                     let root = operation.root

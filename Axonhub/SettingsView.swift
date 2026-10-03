@@ -226,13 +226,12 @@ struct SettingsView: View {
         .sheet(item: $editingInstance) { instance in
             AddInstanceSheet(store: store, instance: instance)
         }
-        .confirmationDialog(
+        .alert(
             String(format: NSLocalizedString("移除“%@”？", comment: ""), removingInstance?.name ?? ""),
             isPresented: Binding(
                 get: { removingInstance != nil },
                 set: { if !$0 { removingInstance = nil } }
             ),
-            titleVisibility: .visible,
             presenting: removingInstance
         ) { instance in
             Button(NSLocalizedString("确认移除", comment: ""), role: .destructive) {
@@ -320,8 +319,6 @@ struct AboutView: View {
                 } label: { aboutLabel("图标许可", symbol: "doc.text") }
             } header: {
                 Text("开源与致谢")
-            } footer: {
-                Text("仅使用 Apple 系统框架，无第三方运行时依赖。")
             }
         }
         .listStyle(.insetGrouped)

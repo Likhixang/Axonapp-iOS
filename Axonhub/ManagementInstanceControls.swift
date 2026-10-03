@@ -19,7 +19,7 @@ struct ManagementInstanceControls: View {
             }
             Picker("当前实例", selection: $store.selectedID) {
                 ForEach(store.instances) { instance in Text(instance.name).tag(instance.id) }
-            }.disabled(store.managementBusy || store.loading)
+            }.pickerStyle(.menu).disabled(store.managementBusy || store.loading)
             if let error = store.error { ObservabilityErrorView(message: error) }
 
         }.symbolVariant(.fill).padding(18).neutralCard()

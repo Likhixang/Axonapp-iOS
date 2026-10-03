@@ -35,8 +35,9 @@ struct ChannelDetailToolsView: View {
             if uncertain { Text("写入可能已完成，请刷新后再试。").foregroundStyle(.orange) }
         }.disabled(busy || store.managementBusy).navigationTitle("模型与价格")
         .task { if detail.object.isEmpty { await load() } }
-        .confirmationDialog("确认执行操作", isPresented: $confirmation, titleVisibility: .visible) {
+        .alert("确认执行操作", isPresented: $confirmation) {
             Button("执行") { execute() }
+            Button("取消", role: .cancel) { }
         } message: { Text("\(target.instance.name) · \(target.instance.address)\n\(pending == "prices" ? obsText("保存模型价格") : pending == "test" ? obsText("测试模型") : obsText("清除错误"))") }
     }
     @MainActor private func load() async {

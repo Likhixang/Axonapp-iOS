@@ -135,6 +135,10 @@ struct NativeAdminModuleView: View {
     @State private var showBatchConfirmation = false
 
     var body: some View {
+        if module == .apiKeys { KeysWorkspaceView(store: store, initialProjectID: initialProjectID) }
+        else { moduleBody }
+    }
+    private var moduleBody: some View {
         List {
             if module.needsProject {
                 Section {
@@ -176,7 +180,9 @@ struct NativeAdminModuleView: View {
                             }
                         } label: { NativeEntityRow(value: row, module: module) }
                     }
-                    .contextMenu { Button("选择") { toggleSelection(row["id"].string) } }
+                    .contextMenu {
+                        Button { toggleSelection(row["id"].string) } label: { Label("选择", systemImage: "checkmark.circle") }
+                    }
                 }
                 if cursor != nil { Button("加载更多") { Task { await loadPage(append: true) } }.disabled(busy) }
             }
@@ -188,10 +194,12 @@ struct NativeAdminModuleView: View {
             ToolbarItemGroup(placement: .navigationBarTrailing) {
                 if !selection.isEmpty {
                     Menu {
-                        Button("启用") { confirmBatch("Enable") }
-                        Button("禁用") { confirmBatch("Disable") }
-                        if module == .apiKeys { Button("归档", role: .destructive) { confirmBatch("Archive") } }
-                        Button("取消选择") { selection = [] }
+                        Button { confirmBatch("Enable") } label: { Label("启用", systemImage: "power") }
+                        Button { confirmBatch("Disable") } label: { Label("禁用", systemImage: "pause.circle") }
+                        if module == .apiKeys {
+                            Button(role: .destructive) { confirmBatch("Archive") } label: { Label("归档", systemImage: "archivebox") }
+                        }
+                        Button { selection = [] } label: { Label("取消选择", systemImage: "xmark.circle") }
                     } label: { Image(systemName: "checkmark.circle") }
                 }
                 Button { creating = true } label: { Image(systemName: "plus") }
@@ -204,9 +212,12 @@ struct NativeAdminModuleView: View {
                 NavigationStack { NativeEntityEditor(session: session, operation: operation, seed: creationSeed) }
             }
         }
-        .confirmationDialog("确认批量操作", isPresented: $showBatchConfirmation, titleVisibility: .visible) {
+        .alert("确认批量操作", isPresented: $showBatchConfirmation) {
+            Button("取消", role: .cancel) { batchAction = nil }
             Button("执行", role: batchAction?.contains("Archive") == true ? .destructive : nil) { executeBatch() }
-        } message: { Text(rows.filter { selection.contains($0["id"].string) }.map(NativeDisplay.name).joined(separator: "\n")) }
+        } message: {
+            Text(rows.filter { selection.contains($0["id"].string) }.map(NativeDisplay.name).joined(separator: "\n") + "\n\n" + (batchAction?.contains("Archive") == true ? obsText("归档后密钥将停止访问，无法重新启用。") : NativeAdminLabels.operation(batchAction ?? "")))
+        }
         .task {
             guard session == nil || cacheRevision != store.pageCache.revision else { return }
             do {
@@ -348,7 +359,6 @@ struct NativeEntityDetailView: View {
                                 await load()
                             }
                         })).disabled(value["status"].string == "archived")
-                        Text("禁用立即停止此密钥的访问，策略和额度配置仍保留。").font(.caption).foregroundStyle(.secondary)
                     }
                     Section("API 密钥") {
                         APIKeyValueRow(read: revealSecret).id(session.invalidated)
@@ -372,13 +382,16 @@ struct NativeEntityDetailView: View {
         .sheet(item: $editing, onDismiss: { Task { await load() } }) { operation in
             NavigationStack { NativeEntityEditor(session: session, operation: operation, seed: seed(operation), baseline: value) }
         }
-        .confirmationDialog("确认操作", isPresented: $confirming, titleVisibility: .visible) {
+        .alert("确认操作", isPresented: $confirming) {
+            Button("取消", role: .cancel) { confirmation = nil }
             if let operation = confirmation {
                 Button(NativeAdminLabels.operation(operation.id), role: operation.destructive ? .destructive : nil) {
                     session.start { _ = try await session.execute(operation, variables: seed(operation), baseline: value); await load() }
                 }
             }
-        } message: { Text(AdminOperationView.label(value)) }
+        } message: {
+            Text(AdminOperationView.label(value) + "\n\n" + (confirmation?.destructive == true ? obsText("撤销、删除、重生成或清空可能不可恢复，旧凭据可能立即失效。") : NativeAdminLabels.operation(confirmation?.id ?? "")))
+        }
         .task { if value.isNull { await load() } }
         .refreshable { await load() }
         .onChange(of: session.invalidated) { invalid in if invalid { value = .null } }
@@ -411,9 +424,24 @@ struct NativeEntityEditor: View {
     @State private var completed = false
     @State private var createdSecret = ""
     @State private var confirmDestructive = false
+    @State private var usageExpanded = false
+    @State private var usageVisited = false
+    @State private var managedValue: JSON
+    @State private var editorBaseline: JSON
+    @State private var keyConfirmation: String?
+    @State private var confirmingKeyAction = false
+    @State private var secretRevision = UUID()
+    @State private var profileRevision = UUID()
+    @State private var profileDraft: JSON = .null
+    @State private var profileBaseline: JSON = .null
+    @State private var profileReady = false
+    private var isKeyWorkspace: Bool { operation.id == "updateAPIKey" && !baseline["id"].string.isEmpty }
+    private var supportsKeyStatus: Bool { isKeyWorkspace && (try? session.schema.operation("updateAPIKeyStatus")) != nil }
     @Environment(\.dismiss) private var dismiss
     init(session: AdminSession, operation: AdminOperation, seed: JSON = .object([:]), baseline: JSON = .null) {
         self.session = session; self.operation = operation; self.baseline = baseline
+        _managedValue = State(initialValue: baseline)
+        _editorBaseline = State(initialValue: baseline)
         var vars = seed.object
         for field in operation.variables where vars[field.name] == nil && field.required {
             vars[field.name] = session.schema.defaultValue(field.type)
@@ -426,12 +454,64 @@ struct NativeEntityEditor: View {
             if operation.id == "createAPIKey" { values["type"] = .string("user"); values["allowedIps"] = .array([]) }
             if operation.id == "createPrompt" { values["role"] = .string("system") }
             if operation.id == "updateAPIKey" && baseline["type"].string != "service_account" { values.removeValue(forKey: "scopes") }
+            if operation.id == "updateAPIKey", !baseline["id"].string.isEmpty, (try? session.schema.operation("updateAPIKeyStatus")) != nil { values.removeValue(forKey: "status") }
             vars["input"] = .object(values)
         }
         _variables = State(initialValue: .object(vars))
     }
     var body: some View {
+        generalForm
+        .disabled(session.busy || session.invalidated || uncertain)
+        .navigationTitle(isKeyWorkspace ? NativeDisplay.name(managedValue) : NativeAdminLabels.operation(operation.id))
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .cancellationAction) { Button(completed ? "完成" : "取消") { dismiss() }.disabled(session.busy) }
+            if !completed {
+                ToolbarItem(placement: .confirmationAction) {
+                    Button(operation.destructive ? NativeAdminLabels.operation(operation.id) : obsText("保存")) {
+                        if operation.destructive { confirmDestructive = true } else { save() }
+                    }.disabled(uncertain || session.busy || session.invalidated || (isKeyWorkspace && !profileReady))
+                }
+            }
+            if isKeyWorkspace {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    keyActions.disabled(uncertain || session.busy || session.invalidated)
+                }
+            }
+        }
+        .alert("确认操作", isPresented: $confirmDestructive) {
+            Button("取消", role: .cancel) {}
+            Button(NativeAdminLabels.operation(operation.id), role: .destructive) { save() }
+        } message: {
+            Text(AdminOperationView.label(baseline) + "\n\n" + obsText("撤销、删除、重生成或清空可能不可恢复，旧凭据可能立即失效。"))
+        }
+        .alert("确认操作", isPresented: $confirmingKeyAction) {
+            Button("取消", role: .cancel) { keyConfirmation = nil }
+            if let action = keyConfirmation {
+                Button(NativeAdminLabels.operation(action), role: .destructive) { performKeyAction(action) }
+            }
+        } message: {
+            Text(NativeDisplay.name(managedValue) + "\n\n" + keyActionWarning)
+        }
+        .interactiveDismissDisabled(session.busy)
+        .onDisappear { createdSecret = ""; secretRevision = UUID() }
+        .onChange(of: usageExpanded) { expanded in
+            if expanded { usageVisited = true }
+        }
+        .onChange(of: session.invalidated) { invalid in
+            if invalid { variables = .null; managedValue = .null; editorBaseline = .null; createdSecret = ""; secretRevision = UUID(); dismiss() }
+        }
+    }
+    private var generalForm: some View {
         Form {
+            if !session.status.isEmpty { Section { Label(session.status, systemImage: "checkmark.circle").foregroundStyle(.green) } }
+            if let failure = failure ?? session.error { Section { ObservabilityErrorView(message: failure) } }
+            if uncertain {
+                Section {
+                    Text("写入可能已经完成。请关闭编辑器并刷新核对，勿重复提交。")
+                        .font(.caption).foregroundStyle(.orange)
+                }
+            }
             if completed {
                 Section { Label("已保存", systemImage: "checkmark.circle.fill").foregroundStyle(.green) }
                 if !createdSecret.isEmpty {
@@ -441,16 +521,32 @@ struct NativeEntityEditor: View {
                 }
             } else if ["createAPIKey", "updateAPIKey"].contains(operation.id), let input = operation.variables.first(where: { $0.name == "input" }), let info = session.schema.types[session.schema.base(input.type)] {
                 Section("基本信息") {
-                    NativeEntityInputFields(session: session, fields: keyFields(info.fields, names: ["name", "type", "status"]), value: binding("input"))
+                    keyBasicFields(info.fields)
+                    if supportsKeyStatus {
+                        Toggle("启用密钥", isOn: Binding(get: { managedValue["status"].string == "enabled" }, set: { enabled in
+                            setKeyStatus(enabled ? "enabled" : "disabled")
+                        })).disabled(managedValue["status"].string == "archived")
+                    }
                 }
                 Section("访问限制") {
-                    NativeEntityInputFields(session: session, fields: keyFields(info.fields, names: ["allowedIps", "scopes", "appendScopes", "clearScopes"]), value: binding("input"))
-                    Text("普通项目密钥使用项目权限；服务账号可单独配置权限。").font(.caption).foregroundStyle(.secondary)
+                    if info.fields.contains(where: { $0.name == "allowedIps" }) {
+                        NativeStringListField(title: "允许 IP 列表（每行一个，留空表示不限制）", values: Binding(get: { variables["input"]["allowedIps"].array.map(\.string) }, set: { updateKeyInput("allowedIps", .array($0.map(JSON.string))) }))
+                    }
+                    if baseline["type"].string == "service_account" || variables["input"]["type"].string == "service_account" {
+                        if info.fields.contains(where: { $0.name == "scopes" }) {
+                            DisclosureGroup(NativeAdminLabels.field("scopes")) {
+                                NativeCatalogSelectionView(session: session, kind: "scopes", selected: Binding(get: { variables["input"]["scopes"] }, set: { updateKeyInput("scopes", $0) }), multiple: true, embedded: true)
+                            }
+                        }
+                    }
                 }
-                Section("模型与额度策略") {
-                    NativeEntityInputFields(session: session, fields: keyFields(info.fields, names: ["profile"]), value: binding("input"))
+                let profileFields = keyFields(info.fields, names: ["profile"])
+                if !profileFields.isEmpty {
+                    Section("模型与额度策略") {
+                        NativeEntityInputFields(session: session, fields: profileFields, value: binding("input"))
+                    }
                 }
-                let remaining = keyFields(info.fields, excluding: ["name", "type", "status", "allowedIps", "scopes", "appendScopes", "clearScopes", "profile"])
+                let remaining = keyFields(info.fields, excluding: ["name", "type", "status", "allowedIps", "scopes", "profile"])
                 if !remaining.isEmpty {
                     Section { DisclosureGroup("高级配置") { NativeEntityInputFields(session: session, fields: remaining, value: binding("input")) } }
                 }
@@ -467,24 +563,117 @@ struct NativeEntityEditor: View {
                     }
                 }
             }
-            if let failure = failure ?? session.error { Section { ObservabilityErrorView(message: failure) } }
-            if uncertain { Text("写入可能已经完成。请关闭编辑器并刷新核对，勿重复提交。").foregroundStyle(.orange) }
+            if isKeyWorkspace { keyManagementSections }
         }
-        .navigationTitle(NativeAdminLabels.operation(operation.id))
-        .navigationBarTitleDisplayMode(.inline)
-        .disabled(session.busy || session.invalidated)
-        .toolbar {
-            ToolbarItem(placement: .cancellationAction) { Button(completed ? "完成" : "取消") { dismiss() } }
-            if !completed { ToolbarItem(placement: .confirmationAction) { Button(operation.destructive ? NativeAdminLabels.operation(operation.id) : obsText("保存")) {
-                if operation.destructive { confirmDestructive = true } else { save() }
-            }.disabled(uncertain) } }
+    }
+    @ViewBuilder private var keyManagementSections: some View {
+        Section("API 密钥") {
+            APIKeyValueRow(read: revealWorkspaceSecret).id(secretRevision)
         }
-        .confirmationDialog("确认操作", isPresented: $confirmDestructive, titleVisibility: .visible) {
-            Button(NativeAdminLabels.operation(operation.id), role: .destructive) { save() }
-        } message: { Text(AdminOperationView.label(baseline)) }
-        .interactiveDismissDisabled(session.busy)
-        .onDisappear { createdSecret = "" }
-        .onChange(of: session.invalidated) { invalid in if invalid { variables = .null; createdSecret = "" } }
+        Section("策略") {
+            NativeProfilesView(session: session, entity: "APIKey", id: baseline["id"].string, embedded: true, inline: true,
+                onUncertainChange: { uncertain = $0 }, coordinatedSave: true,
+                onDraftChange: { draft, original in profileDraft = draft; profileBaseline = original },
+                onReadyChange: { profileReady = $0 })
+                .id(profileRevision)
+        }
+        Section {
+            DisclosureGroup("Token 与额度用量", isExpanded: $usageExpanded) {
+                if usageVisited {
+                    NativeAPIKeyUsageView(session: session, id: baseline["id"].string, active: usageExpanded, embedded: true, inline: true)
+                }
+            }
+        }
+        Section { DisclosureGroup("详细信息") { NativeDetailFieldsView(store: session.store, value: managedValue) } }
+    }
+    private var keyActions: some View {
+        Menu {
+            if (try? session.schema.operation("rotateAPIKey")) != nil {
+                Button { keyConfirmation = "rotateAPIKey"; confirmingKeyAction = true } label: {
+                    Label(NativeAdminLabels.operation("rotateAPIKey"), systemImage: "arrow.triangle.2.circlepath")
+                }.disabled(managedValue["status"].string == "archived")
+            }
+            if (try? session.schema.operation("bulkArchiveAPIKeys")) != nil {
+                Button(role: .destructive) { keyConfirmation = "bulkArchiveAPIKeys"; confirmingKeyAction = true } label: {
+                    Label("归档", systemImage: "archivebox")
+                }.disabled(managedValue["status"].string == "archived")
+            }
+            if let delete = try? session.schema.operation("deleteAPIKey") {
+                Button(role: .destructive) { keyConfirmation = delete.id; confirmingKeyAction = true } label: {
+                    Label("删除", systemImage: "trash")
+                }
+            }
+        } label: { Label("操作", systemImage: "ellipsis.circle") }
+    }
+    private var keyActionWarning: String {
+        switch keyConfirmation {
+        case "rotateAPIKey": return obsText("轮换后原密钥将立即失效，所有使用旧密钥的应用需更新。确定继续吗？")
+        case "bulkArchiveAPIKeys": return obsText("归档后密钥将停止访问，无法重新启用。")
+        default: return obsText("撤销、删除、重生成或清空可能不可恢复，旧凭据可能立即失效。")
+        }
+    }
+    @MainActor private func revealWorkspaceSecret() async throws -> String {
+        guard !session.busy, !uncertain else { throw AdminError.changedTarget }
+        let id = baseline["id"].string
+        let revealed = try await session.read("revealAPIKey", variables: .object(["id": .string(id)]))
+        guard revealed["id"].string == id, !revealed["key"].string.isEmpty else { throw AdminError.notFound }
+        return revealed["key"].string
+    }
+    private func setKeyStatus(_ status: String) {
+        guard !uncertain, !session.busy, !session.invalidated else { return }
+        session.start {
+            let op = try session.schema.operation("updateAPIKeyStatus")
+            session.status = ""
+            uncertain = true
+            _ = try await session.execute(op, variables: .object(["id": baseline["id"], "status": .string(status)]), baseline: managedValue)
+            let actual = try await session.detail("APIKey", id: baseline["id"].string)
+            guard !actual.isNull else { throw AdminError.notFound }
+            managedValue = actual; uncertain = false
+        }
+    }
+    private func performKeyAction(_ action: String) {
+        guard !uncertain, !session.busy, !session.invalidated else { return }
+        session.start {
+            let op = try session.schema.operation(action)
+            let vars: JSON = action == "bulkArchiveAPIKeys" ? .object(["ids": .array([baseline["id"]])]) : .object(["id": baseline["id"]])
+            session.status = ""; secretRevision = UUID()
+            uncertain = true
+            _ = try await session.execute(op, variables: vars, baseline: managedValue)
+            secretRevision = UUID(); keyConfirmation = nil
+            if action == "deleteAPIKey" { dismiss() }
+            else {
+                let actual = try await session.detail("APIKey", id: baseline["id"].string)
+                guard !actual.isNull else { throw AdminError.notFound }
+                managedValue = actual
+            }
+            uncertain = false
+        }
+    }
+    @ViewBuilder private func keyBasicFields(_ fields: [AdminField]) -> some View {
+        if keyFields(fields, names: ["name"]).isEmpty == false {
+            LabeledContent(NativeAdminLabels.field("name")) {
+                TextField(NativeAdminLabels.field("name"), text: Binding(get: { variables["input"]["name"].string }, set: { updateKeyInput("name", .string($0)) }))
+                    .multilineTextAlignment(.trailing).textInputAutocapitalization(.never).autocorrectionDisabled()
+            }
+        }
+        if operation.id == "createAPIKey", let type = fields.first(where: { $0.name == "type" }),
+           let options = session.schema.types[session.schema.base(type.type)]?.values {
+            Picker(NativeAdminLabels.field("type"), selection: Binding(get: { variables["input"]["type"].string }, set: { updateKeyInput("type", .string($0)) })) {
+                ForEach(options, id: \.self) { value in Text(value == "user" ? obsText("项目密钥") : NativeAdminLabels.value(value)).tag(value) }
+            }.pickerStyle(.menu)
+        } else if !baseline["type"].string.isEmpty {
+            LabeledContent(NativeAdminLabels.field("type"), value: baseline["type"].string == "user" ? obsText("项目密钥") : NativeAdminLabels.value(baseline["type"].string))
+        }
+        if !supportsKeyStatus {
+            NativeEntityInputFields(session: session, fields: keyFields(fields, names: ["status"]), value: binding("input"))
+        }
+    }
+    private func updateKeyInput(_ key: String, _ value: JSON) {
+        var input = variables["input"].object
+        input[key] = value
+        var vars = variables.object
+        vars["input"] = .object(input)
+        variables = .object(vars)
     }
     private func keyFields(_ fields: [AdminField], names: Set<String>? = nil, excluding: Set<String> = []) -> [AdminField] {
         fields.filter { field in
@@ -496,20 +685,57 @@ struct NativeEntityEditor: View {
     }
     private func binding(_ key: String) -> Binding<JSON> { Binding(get: { variables[key] }, set: { var v = variables.object; v[key] = $0; variables = .object(v) }) }
     private func save() {
+        guard !uncertain, !session.busy, !session.invalidated else { return }
         session.start {
             var submitted = variables
-            if !baseline.isNull, let input = operation.variables.first(where: { $0.name == "input" }), !operation.replacement {
-                let original = session.schema.project(baseline, type: input.type)
+            if !editorBaseline.isNull, let input = operation.variables.first(where: { $0.name == "input" }), !operation.replacement {
+                let original = session.schema.project(editorBaseline, type: input.type)
                 var vars = submitted.object
                 vars["input"] = .object(submitted["input"].object.filter { original[$0.key] != $0.value })
                 submitted = .object(vars)
             }
             try session.schema.validate(submitted, fields: operation.variables, mutation: true)
+            var profileOperation: AdminOperation?
+            if isKeyWorkspace {
+                guard profileReady else { throw AdminError.invalidInput }
+                try NativeProfileValidation.validate(profileDraft, isKey: true)
+                let original = session.schema.project(profileBaseline["profiles"], type: "UpdateAPIKeyProfilesInput")
+                if original != profileDraft {
+                    let op = try session.schema.operation("updateAPIKeyProfiles")
+                    try session.schema.validate(.object(["id": baseline["id"], "input": profileDraft]), fields: op.variables, mutation: true)
+                    profileOperation = op
+                }
+            }
+            session.status = ""
             uncertain = true
-            let response = try await session.execute(operation, variables: submitted, baseline: baseline)
-            uncertain = false; completed = true
-            if operation.id == "createAPIKey" { createdSecret = response["key"].string }
-            else { dismiss() }
+            let response = try await session.execute(operation, variables: submitted, baseline: editorBaseline)
+            if let profileOperation {
+                do {
+                    _ = try await session.execute(profileOperation, variables: .object(["id": baseline["id"], "input": profileDraft]), baseline: profileBaseline)
+                } catch {
+                    failure = obsText("基本信息已保存，策略保存未确认。请刷新核对后再编辑。") + "\n" + error.localizedDescription
+                    throw error
+                }
+            }
+            if isKeyWorkspace {
+                let actual = try await session.detail("APIKey", id: baseline["id"].string)
+                guard !actual.isNull else { throw AdminError.notFound }
+                managedValue = actual
+                editorBaseline = managedValue
+                profileReady = false
+                profileRevision = UUID()
+                if let input = operation.variables.first(where: { $0.name == "input" }) {
+                    var values = session.schema.project(managedValue, type: input.type).object
+                    if managedValue["type"].string != "service_account" { values.removeValue(forKey: "scopes") }
+                    if supportsKeyStatus { values.removeValue(forKey: "status") }
+                    variables = .object(["id": baseline["id"], "input": .object(values)])
+                }
+            } else {
+                completed = true
+                if operation.id == "createAPIKey" { createdSecret = response["key"].string }
+                else { dismiss() }
+            }
+            uncertain = false
         }
     }
 }

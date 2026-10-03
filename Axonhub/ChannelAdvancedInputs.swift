@@ -140,52 +140,107 @@ enum ChannelInputSchema {
     }
 }
 
-/// Lazy navigation avoids recursively constructing SwiftUI view types. Sensitive strings
-/// remain in ephemeral view state and SecureField only; never copied to defaults/logs.
+/// Inline editors type-erase recursive children to keep the SwiftUI view type finite.
+/// Composite fields expand in place by default. Sensitive strings stay in ephemeral
+/// view state and KeyEditorField only; never copied to defaults/logs.
 struct ChannelSchemaFields: View {
     @Binding var value: JSON
     let type: String
     var path = ""
     var secure = false
+    var inline = true
+    var excludingFields: Set<String> = []
     private var clean: String { type.trimmingCharacters(in: CharacterSet(charactersIn: "!")) }
+    private var fieldLabel: String {
+        inline ? NativeAdminLabels.field(path.split(separator: ".").last.map(String.init) ?? "item") : NativeAdminLabels.path(path)
+    }
+    private var sensitiveValue: Bool {
+        secure || path.split(separator: ".").contains { ["credentials", "proxy", "providerQuota", "headerOverrideOperations", "bodyOverrideOperations"].contains(String($0)) }
+    }
     var body: some View {
         Group {
             if clean.hasPrefix("[") {
                 let element = String(clean.dropFirst().dropLast())
                 ForEach(Array(value.array.indices), id: \.self) { index in
-                    NavigationLink("\(index + 1)") {
-                        Form { ChannelSchemaFields(value: item(index), type: element, path: path, secure: secure) }
+                    if inline {
+                        if Self.isComposite(element) {
+                            DisclosureGroup("\(index + 1)") {
+                                child(value: item(index), type: element, path: path, secure: sensitiveValue)
+                                removeItemButton(index)
+                            }
+                        } else {
+                            child(value: item(index), type: element, path: path, secure: sensitiveValue)
+                            removeItemButton(index)
+                        }
+                    } else {
+                        NavigationLink("\(index + 1)") {
+                            Form { child(value: item(index), type: element, path: path, secure: sensitiveValue) }
+                        }
+                        removeItemButton(index)
                     }
-                    Button("移除第 \(index + 1) 项", role: .destructive) { var a = value.array; a.remove(at: index); value = .array(a) }
                 }
                 Button("添加一项") { value = .array(value.array + [ChannelInputSchema.seed(element)]) }
             } else if let fields = ChannelInputSchema.fields[clean] {
-                ForEach(fields.keys.sorted(), id: \.self) { key in
+                ForEach(fields.keys.filter { !excludingFields.contains($0) }.sorted(), id: \.self) { key in
                     let fieldType = fields[key] ?? "String"
-                    let sensitive = secure || ["credentials", "proxy", "providerQuota", "headerOverrideOperations", "bodyOverrideOperations"].contains(key)
+                    let sensitive = sensitiveValue || ["credentials", "proxy", "providerQuota", "headerOverrideOperations", "bodyOverrideOperations"].contains(key)
                     if value.object[key] != nil && !value[key].isNull {
-                        NavigationLink(NativeAdminLabels.field(key)) { Form { ChannelSchemaFields(value: field(key), type: fieldType, path: path + "." + key, secure: sensitive) }.navigationTitle(NativeAdminLabels.field(key)) }
-                        if !fieldType.hasSuffix("!") { Button(obsText("清除") + " " + NativeAdminLabels.field(key), role: .destructive) { var o = value.object; o.removeValue(forKey: key); value = .object(o) } }
+                        if inline {
+                            if Self.isComposite(fieldType) {
+                                DisclosureGroup(NativeAdminLabels.field(key)) {
+                                    child(value: field(key), type: fieldType, path: path + "." + key, secure: sensitive)
+                                    clearFieldButton(key, type: fieldType)
+                                }
+                            } else {
+                                child(value: field(key), type: fieldType, path: path + "." + key, secure: sensitive)
+                                clearFieldButton(key, type: fieldType)
+                            }
+                        } else {
+                            NavigationLink(NativeAdminLabels.field(key)) {
+                                Form { child(value: field(key), type: fieldType, path: path + "." + key, secure: sensitive) }
+                                    .navigationTitle(NativeAdminLabels.field(key))
+                            }
+                            clearFieldButton(key, type: fieldType)
+                        }
                     } else {
                         Button(obsText("配置") + " " + NativeAdminLabels.field(key)) { var o = value.object; o[key] = ChannelInputSchema.seed(fieldType); value = .object(o) }
                     }
                 }
             } else if let choices = ChannelInputSchema.enums[clean] {
-                Picker(NativeAdminLabels.path(path), selection: stringBinding) { ForEach(choices, id: \.self) { Text(NativeAdminLabels.value($0)).tag($0) } }
+                Picker(fieldLabel, selection: stringBinding) { ForEach(choices, id: \.self) { Text(NativeAdminLabels.value($0)).tag($0) } }.pickerStyle(.menu)
             } else if let choices = stringChoices {
-                Picker(NativeAdminLabels.path(path), selection: stringBinding) {
+                Picker(fieldLabel, selection: stringBinding) {
                     if !choices.contains(value.string) { Text(value.string).tag(value.string) }
                     ForEach(choices, id: \.self) { Text(NativeAdminLabels.value($0)).tag($0) }
-                }
+                }.pickerStyle(.menu)
             } else if clean == "Boolean" {
-                Toggle(NativeAdminLabels.path(path), isOn: Binding(get: { value.bool }, set: { value = .bool($0) }))
+                Toggle(fieldLabel, isOn: Binding(get: { value.bool }, set: { value = .bool($0) }))
             } else if ["Int", "Float", "Any", "Decimal"].contains(clean) {
-                LabeledEditorField(NativeAdminLabels.path(path), text: Binding(get: { value.prettyJSON }, set: { value = JSON.from($0) ?? .string($0) }))
-            } else if secure {
-                LabeledEditorField(NativeAdminLabels.path(path), text: stringBinding, secure: true)
+                LabeledEditorField(fieldLabel, text: Binding(get: { value.prettyJSON }, set: { value = JSON.from($0) ?? .string($0) }))
+            } else if sensitiveValue {
+                LabeledEditorField(fieldLabel, text: stringBinding, secure: true)
             } else {
-                LabeledEditorField(NativeAdminLabels.path(path), text: stringBinding)
+                LabeledEditorField(fieldLabel, text: stringBinding)
             }
+        }
+    }
+    private static func isComposite(_ type: String) -> Bool {
+        let clean = type.trimmingCharacters(in: CharacterSet(charactersIn: "!"))
+        return clean.hasPrefix("[") || ChannelInputSchema.fields[clean] != nil
+    }
+    private func child(value: Binding<JSON>, type: String, path: String, secure: Bool) -> AnyView {
+        AnyView(ChannelSchemaFields(value: value, type: type, path: path, secure: secure, inline: inline))
+    }
+    private func removeItemButton(_ index: Int) -> some View {
+        Button("移除第 \(index + 1) 项", role: .destructive) {
+            var a = value.array
+            guard a.indices.contains(index) else { return }
+            a.remove(at: index); value = .array(a)
+        }
+    }
+    @ViewBuilder private func clearFieldButton(_ key: String, type: String) -> some View {
+        if !type.hasSuffix("!") {
+            Button(obsText("清除") + " " + NativeAdminLabels.field(key), role: .destructive) { var o = value.object; o.removeValue(forKey: key); value = .object(o) }
         }
     }
     private var stringChoices: [String]? {

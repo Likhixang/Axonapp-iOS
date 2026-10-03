@@ -113,7 +113,7 @@ struct APIKeysListView: View {
                             ForEach(projectOptions, id: \.self) { proj in
                                 Text(proj["name"].string).tag(proj["id"].string)
                             }
-                        }
+                        }.pickerStyle(.menu)
                     }
                 }
                 .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
@@ -221,10 +221,9 @@ struct APIKeysListView: View {
                 }
             }
         }
-        .confirmationDialog(
+        .alert(
             NSLocalizedString("轮换 API 密钥", comment: ""),
-            isPresented: $showRotateConfirm,
-            titleVisibility: .visible
+            isPresented: $showRotateConfirm
         ) {
             Button(NSLocalizedString("确认轮换", comment: ""), role: .destructive) {
                 if let target = rotatingItem {
@@ -492,7 +491,7 @@ struct APIKeyCreateSheet: View {
                     Picker(NSLocalizedString("类型", comment: ""), selection: $type) {
                         Text(NSLocalizedString("普通用户密钥", comment: "")).tag("user")
                         Text(NSLocalizedString("服务账号", comment: "")).tag("service_account")
-                    }
+                    }.pickerStyle(.menu)
                 }
 
                 Section(NSLocalizedString("安全限制", comment: "")) {

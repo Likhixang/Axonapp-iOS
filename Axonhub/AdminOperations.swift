@@ -176,7 +176,7 @@ extension AxonClient {
                 try AdminWritePolicy.verifyFields(input.object.filter { ["isOwner", "scopes"].contains($0.key) }, actual: target)
                 try AdminWritePolicy.verifyRelations(input: input, actual: target["user"], relation: "Role")
             }
-            status = NSLocalizedString("已精确读回确认", comment: "")
+            status = NSLocalizedString("已确认", comment: "")
             return
         }
         if !operation.entity.isEmpty {
@@ -223,13 +223,13 @@ extension AxonClient {
                     }
                 }
             }
-            status = NSLocalizedString("已精确读回确认", comment: "")
+            status = NSLocalizedString("已确认", comment: "")
             return
         }
         if root == "backup" {
             guard response["success"].bool, let backup = JSON.from(response["data"].string), !backup["version"].string.isEmpty else { throw AdminError.verification }
             _ = try await read("systemVersion")
-            status = NSLocalizedString("备份数据已生成并校验格式；不修改服务器状态。", comment: "")
+            status = NSLocalizedString("备份数据已生成", comment: "")
             return
         }
         guard !operation.verification.isEmpty else { throw AdminError.verification }
@@ -256,7 +256,7 @@ extension AxonClient {
             try AdminWritePolicy.verifyFields(variables["input"].object, actual: actual, baseline: baseline)
         }
         // GC is asynchronous, cache diagnostic exposes no revision, passwords intentionally cannot be read back.
-        status = operation.asyncEffect ? NSLocalizedString("服务器已接受，已读取目标状态；完成效果无法通过 API 精确证明。", comment: "") : NSLocalizedString("已精确读回确认", comment: "")
+        status = operation.asyncEffect ? NSLocalizedString("服务器已接受，请稍后刷新确认。", comment: "") : NSLocalizedString("已确认", comment: "")
     }
 }
 

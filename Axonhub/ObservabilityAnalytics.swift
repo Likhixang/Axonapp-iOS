@@ -40,7 +40,7 @@ struct ObservabilityAnalyticsView: View {
                         Text(obsText("模型")).tag("model")
                         Text(obsText("API Keys")).tag("apiKey")
                         Text(obsText("用户")).tag("user")
-                    }
+                    }.pickerStyle(.menu)
                     Button(obsText("应用筛选")) { Task { await refresh() } }
                 }.textInputAutocapitalization(.never).autocorrectionDisabled()
                     .disabled(session.busy || session.invalidated)
@@ -55,7 +55,7 @@ struct ObservabilityAnalyticsView: View {
                 Section(obsText("每日趋势")) {
                     Picker(obsText("指标"), selection: $chartMetric) {
                         ForEach(["totalTokens", "inputTokens", "cachedInputTokens", "uncachedInputTokens", "outputTokens", "requestCount", "cost"], id: \.self) { Text($0 == "totalTokens" ? obsText("Token 用量") : NativeAdminLabels.field($0)).tag($0) }
-                    }
+                    }.pickerStyle(.menu)
                     if daily.isEmpty { Text(obsText("所选范围没有用量数据")) }
                     else {
                         Chart(Array(daily.enumerated()), id: \.offset) { _, row in
@@ -269,24 +269,24 @@ struct ObservabilityDashboardView: View {
                 }
             }
             DisclosureGroup(obsText("统计维度与时间范围")) {
-                Picker(obsText("指标"), selection: $metric) { ForEach(ObservabilityDashboardMetric.allCases) { Text($0.title).tag($0) } }
+                Picker(obsText("指标"), selection: $metric) { ForEach(ObservabilityDashboardMetric.allCases) { Text($0.title).tag($0) } }.pickerStyle(.menu)
                 if metric.supportsWindow {
                     Picker(obsText("时间范围"), selection: $window) {
                         Text(obsText("今日")).tag("day")
                         Text(obsText("本周")).tag("week")
                         Text(obsText("本月")).tag("month")
-                        }
+                        }.pickerStyle(.menu)
                 } else { Text(obsText("服务器固定范围")).font(.footnote).foregroundStyle(.secondary) }
                 Toggle(obsText("按指标降序"), isOn: $descending)
                 if metric == .channelSuccessRates {
                     Picker(obsText("渠道类型"), selection: $channelType) {
                         Text(obsText("全部")).tag("all")
                         ForEach(Array(Set(rows.map { $0["channelType"].string })).sorted(), id: \.self) { Text(NativeAdminLabels.field($0)).tag($0) }
-                    }
+                    }.pickerStyle(.menu)
                     Toggle(obsText("仅显示失败或已禁用渠道"), isOn: $warningsOnly)
                     Picker(obsText("排序字段"), selection: $sortField) {
                         ForEach(["successRate", "failedCount", "successCount", "totalCount", "inputTokens", "outputTokens", "totalTokens"], id: \.self) { Text($0 == "totalTokens" ? obsText("Token 用量") : NativeAdminLabels.field($0)).tag($0) }
-                    }
+                    }.pickerStyle(.menu)
                 }
             }.disabled(session.busy || session.invalidated)
             if metric.supportsWindow {

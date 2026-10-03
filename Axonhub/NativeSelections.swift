@@ -5,20 +5,23 @@ struct NativeEntityInputFields: View {
     @ObservedObject var session: AdminSession
     let fields: [AdminField]
     @Binding var value: JSON
+    @State private var profileExpanded = false
     var body: some View {
         ForEach(fields) { field in
             if field.name == "profile" && session.schema.base(field.type) == "APIKeyProfileInput" {
-                NavigationLink("策略配置") {
-                    NativeProfileEditor(session: session, profile: binding(field.name), isKey: true)
-                        .onAppear { if value[field.name].isNull { set(field.name, .object(["name": .string("Default")])) } }
+                DisclosureGroup("策略配置", isExpanded: Binding(get: { profileExpanded }, set: { expanded in
+                    if expanded && value[field.name].isNull { set(field.name, .object(["name": .string("Default")])) }
+                    profileExpanded = expanded
+                })) {
+                    NativeProfileEditor(session: session, profile: binding(field.name), isKey: true, embedded: true)
                 }
             } else if ["scopes", "appendScopes"].contains(field.name) {
-                NavigationLink(NativeAdminLabels.field(field.name)) {
-                    NativeCatalogSelectionView(session: session, kind: "scopes", selected: binding(field.name), multiple: true)
+                DisclosureGroup(NativeAdminLabels.field(field.name)) {
+                    NativeCatalogSelectionView(session: session, kind: "scopes", selected: binding(field.name), multiple: true, embedded: true)
                 }
             } else if let kind = catalogKind(field.name) {
-                NavigationLink {
-                    NativeCatalogSelectionView(session: session, kind: kind, selected: binding(field.name), multiple: field.type.hasPrefix("["))
+                DisclosureGroup {
+                    NativeCatalogSelectionView(session: session, kind: kind, selected: binding(field.name), multiple: field.type.hasPrefix("["), embedded: true)
                 } label: {
                     HStack { Text(NativeAdminLabels.field(field.name)); Spacer(); Text(value[field.name].isNull ? obsText("未选择") : obsText("已选择")).font(.caption).foregroundStyle(.secondary) }
                 }
@@ -44,6 +47,7 @@ struct NativeCatalogSelectionView: View {
     let kind: String
     @Binding var selected: JSON
     let multiple: Bool
+    var embedded = false
     @State private var rows: [JSON] = []
     @State private var search = ""
     @State private var failure: String?
@@ -51,9 +55,32 @@ struct NativeCatalogSelectionView: View {
     @State private var cursor: String?
     private var filtered: [JSON] { rows.filter { search.isEmpty || AdminOperationView.label($0).localizedCaseInsensitiveContains(search) || $0["scope"].string.localizedCaseInsensitiveContains(search) } }
     var body: some View {
-        List {
-            if loading && rows.isEmpty { ProgressView("正在读取服务器数据") }
-            if let failure = failure { ObservabilityErrorView(message: failure) }
+        Group {
+            if embedded {
+                TextField("搜索名称", text: $search).textInputAutocapitalization(.never).autocorrectionDisabled()
+                if loading && rows.isEmpty { ProgressView("正在读取服务器数据") }
+                if let failure = failure { ObservabilityErrorView(message: failure) }
+                if !filtered.isEmpty {
+                    ScrollView {
+                        LazyVStack(alignment: .leading, spacing: 4) { selectionRows }
+                    }.frame(height: min(CGFloat(filtered.count) * 60, 260))
+                }
+                selectionActions
+            } else {
+                List {
+                    if loading && rows.isEmpty { ProgressView("正在读取服务器数据") }
+                    if let failure = failure { ObservabilityErrorView(message: failure) }
+                    selectionRows
+                    selectionActions
+                }
+                .navigationTitle(kind == "scopes" ? NativeAdminLabels.field("scopes") : kind == "users" ? NativeAdminLabels.field("userIDs") : kind == "roles" ? NativeAdminLabels.field("roleIDs") : NativeAdminLabels.field("projectIDs"))
+                .searchable(text: $search, prompt: obsText("搜索名称"))
+            }
+        }
+        .task { if rows.isEmpty { await load(append: false) } }
+    }
+    private var selectionRows: some View {
+        Group {
             ForEach(filtered, id: \.self) { row in
                 let id = kind == "scopes" ? row["scope"] : row["id"]
                 Button {
@@ -73,12 +100,13 @@ struct NativeCatalogSelectionView: View {
                     }.frame(minHeight: 44)
                 }.buttonStyle(.plain)
             }
+        }
+    }
+    private var selectionActions: some View {
+        HStack {
             if cursor != nil { Button("加载更多") { Task { await load(append: true) } }.disabled(loading) }
             if multiple { Button("取消全选") { selected = .array([]) } }
-        }
-        .navigationTitle(kind == "scopes" ? NativeAdminLabels.field("scopes") : kind == "users" ? NativeAdminLabels.field("userIDs") : kind == "roles" ? NativeAdminLabels.field("roleIDs") : NativeAdminLabels.field("projectIDs"))
-        .searchable(text: $search, prompt: obsText("搜索名称"))
-        .task { if rows.isEmpty { await load(append: false) } }
+        }.buttonStyle(.borderless)
     }
     @MainActor private func load(append: Bool) async {
         guard !loading else { return }; loading = true; defer { loading = false }

@@ -136,7 +136,7 @@ struct ManagementDashboardView: View {
             if rows.isEmpty { chartEmpty }
             else {
                 ChannelHealthSummary(rows: rows)
-                ForEach(Array(rows.sorted { $0["failedCount"].number > $1["failedCount"].number }.prefix(5).enumerated()), id: \.offset) { _, row in
+                ForEach(Array(rows.sorted { (ChannelHealthStatistics($0).rate ?? -1) > (ChannelHealthStatistics($1).rate ?? -1) }.prefix(5).enumerated()), id: \.offset) { _, row in
                     Divider()
                     ChannelHealthRow(row: row)
                 }

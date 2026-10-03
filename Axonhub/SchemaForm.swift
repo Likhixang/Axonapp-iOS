@@ -163,7 +163,7 @@ enum AdminError: LocalizedError {
 }
 
 /// Native recursive editor: input objects, enums, typed scalars, arrays, omission and explicit null.
-/// No secrets persist outside the in-memory SwiftUI session. Every nested editor opens a native sheet.
+/// No secrets persist outside the in-memory SwiftUI session. Nested values expand in place.
 struct AdminSchemaForm: View {
     let schema: AdminSchema
     let fields: [AdminField]
@@ -191,7 +191,6 @@ private struct AdminFieldRow: View {
     @Binding var value: JSON?
     let allowNull: Bool
     var allowedFields: Set<String>? = nil
-    @State private var editing = false
     @State private var numberText = ""
     @State private var numberError = false
     @State private var revealed = false
@@ -218,14 +217,10 @@ private struct AdminFieldRow: View {
             } else if value?.isNull == true {
                 Label("null", systemImage: "minus.circle").foregroundStyle(.secondary)
             } else if field.type.hasPrefix("[") || info?.kind == "object" {
-                Button {
-                    editing = true
+                DisclosureGroup {
+                    nestedFields
                 } label: {
-                    HStack {
-                        Text(field.type.hasPrefix("[") ? String(format: NSLocalizedString("%lld 项", comment: ""), Int64(value?.array.count ?? 0)) : NSLocalizedString("编辑对象", comment: ""))
-                        Spacer()
-                        Image(systemName: "chevron.right")
-                    }
+                    Text(field.type.hasPrefix("[") ? String(format: NSLocalizedString("%lld 项", comment: ""), Int64(value?.array.count ?? 0)) : NSLocalizedString("编辑对象", comment: ""))
                 }
             } else if info?.kind == "enum" {
                 Picker(NativeAdminLabels.field(field.name), selection: scalarString) {
@@ -243,7 +238,7 @@ private struct AdminFieldRow: View {
                     }
                 if numberError { Text("请输入有效数字").font(.caption).foregroundStyle(.red) }
             } else if ["JSONRawMessageInput", "JSONRawMessage"].contains(schema.base(field.type)) {
-                Button("编辑结构化值") { editing = true }
+                DisclosureGroup("编辑结构化值") { nestedFields }
             } else if AdminSchema.sensitive(field.name) {
                 if revealed { TextField(NativeAdminLabels.field(field.name), text: scalarString).textInputAutocapitalization(.never).autocorrectionDisabled() }
                 else { SecureField(NativeAdminLabels.field(field.name), text: scalarString).textInputAutocapitalization(.never).autocorrectionDisabled() }
@@ -257,19 +252,16 @@ private struct AdminFieldRow: View {
 
         }
         .padding(.vertical, 3)
-        .sheet(isPresented: $editing) {
-            NavigationStack {
-                AnyView(AdminNestedForm(schema: schema, title: NativeAdminLabels.field(field.name), type: field.type,
-                    value: Binding(get: { value ?? schema.defaultValue(field.type) }, set: { value = $0 }), allowNull: allowNull, allowedFields: allowedFields))
-                    .toolbar { ToolbarItem(placement: .confirmationAction) { Button("完成") { editing = false } } }
-            }
-        }
+    }
+    private var nestedFields: AnyView {
+        AnyView(AdminNestedForm(schema: schema, type: field.type,
+            value: Binding(get: { value ?? schema.defaultValue(field.type) }, set: { value = $0 }),
+            allowNull: allowNull, allowedFields: allowedFields))
     }
 }
 
 private struct AdminNestedForm: View {
     let schema: AdminSchema
-    let title: String
     let type: String
     @Binding var value: JSON
     let allowNull: Bool
@@ -277,18 +269,18 @@ private struct AdminNestedForm: View {
     @State private var advanced = ""
     @State private var advancedError = false
     var body: some View {
-        Form {
+        VStack(alignment: .leading, spacing: 12) {
             if type.hasPrefix("[") {
                 ForEach(Array(value.array.indices), id: \.self) { index in
                     let field = AdminField(name: "item", type: schema.element(type), description: "", hasDefault: false, default: nil)
-                    Section {
-                        AdminFieldRow(schema: schema, field: field,
+                    VStack(alignment: .leading, spacing: 8) {
+                        AnyView(AdminFieldRow(schema: schema, field: field,
                             value: Binding(get: { value.array.indices.contains(index) ? value.array[index] : nil }, set: { new in
                                 var items = value.array
                                 guard items.indices.contains(index) else { return }
                                 if let new = new { items[index] = new } else { items.remove(at: index) }
                                 value = .array(items)
-                            }), allowNull: allowNull)
+                            }), allowNull: allowNull))
                         Button("移除此项", role: .destructive) {
                             var items = value.array
                             if items.indices.contains(index) { items.remove(at: index); value = .array(items) }
@@ -299,7 +291,7 @@ private struct AdminNestedForm: View {
                     value = .array(value.array + [schema.defaultValue(schema.element(type))])
                 }
             } else if let info = schema.types[schema.base(type)], info.kind == "object" {
-                AdminSchemaForm(schema: schema, fields: info.fields.filter { allowedFields == nil || allowedFields!.contains($0.name) }, value: $value, allowNull: allowNull)
+                AnyView(AdminSchemaForm(schema: schema, fields: info.fields.filter { allowedFields == nil || allowedFields!.contains($0.name) }, value: $value, allowNull: allowNull))
             } else {
                 // Custom raw JSON scalar only; schema input objects never degrade to a bare JSON shell.
                 TextEditor(text: $advanced).font(.body.monospaced()).frame(minHeight: 240)
@@ -310,7 +302,6 @@ private struct AdminNestedForm: View {
                 if advancedError { Text("JSON 格式不正确，原值未改变。").foregroundStyle(.red) }
             }
         }
-        .navigationTitle(title)
         .onAppear { advanced = value.prettyJSON }
     }
 }

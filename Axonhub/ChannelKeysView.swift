@@ -37,8 +37,9 @@ struct ChannelKeysView: View {
             if let message = message { Text(message).font(.caption) }
             if uncertain { Text("写入可能已完成，请刷新后再试。").foregroundStyle(.orange) }
         }.disabled(busy || store.managementBusy || uncertain).navigationTitle("密钥管理")
-        .confirmationDialog("确认敏感操作", isPresented: $confirmation, titleVisibility: .visible) {
+        .alert("确认敏感操作", isPresented: $confirmation) {
             Button("授权并执行", role: pending == "deleteDisabled" ? .destructive : nil) { perform(pending) }
+            Button("取消", role: .cancel) { }
         } message: { Text("\(target.instance.name) · \(target.instance.address)\n\(pendingTitle)") }
         .onDisappear { secrets = .object([:]); selected.removeAll(); key = "" }
     }

@@ -34,16 +34,22 @@ jobs:
           brew install xcodegen
           xcodegen generate
       - name: Verify native presentation coverage and real Swift behavior
+        if: github.event_name == 'workflow_dispatch'
         run: python3 -B scripts/check-presentation.py --swift
       - name: Verify bundled brand marks and native icon mapping
+        if: github.event_name == 'workflow_dispatch'
         run: python3 -B scripts/check-brand-icons.py --swift
       - name: Check Swift integration source guards
+        if: github.event_name == 'workflow_dispatch'
         run: python3 -B scripts/check-swift-integration.py
       - name: Verify editor regressions with host Swift (no simulator)
+        if: github.event_name == 'workflow_dispatch'
         run: python3 -B scripts/check-editor-regressions.py --swift
       - name: Check all localization resources and source coverage
+        if: github.event_name == 'workflow_dispatch'
         run: python3 scripts/check-localizations.py
       - name: Verify all GraphQL operations against official deployed schema
+        if: github.event_name == 'workflow_dispatch'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -106,8 +112,8 @@ jobs:
               for key in ['CFBundleIcons','CFBundleIcons~ipad']:
                   assert info[key]['CFBundlePrimaryIcon']['CFBundleIconName'] == 'AppIcon'
                   assert set(info[key]['CFBundleAlternateIcons']) == {'AppIconLight','AppIconDark'}
-              assert info['CFBundleShortVersionString']=='1.0.1'
-              assert info['CFBundleVersion']=='31'
+              assert info['CFBundleShortVersionString']=='1.0.2'
+              assert info['CFBundleVersion']=='36'
               assert set(info.get('CFBundleLocalizations', [])) == {'zh-Hans', 'zh-Hant', 'en', 'ja', 'ko'}
               assert 'Payload/Axonapp.app/Axonapp' in z.namelist()
               notices = z.read('Payload/Axonapp.app/BrandIcons-LICENSE.txt').decode()

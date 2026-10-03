@@ -211,7 +211,7 @@ import UIKit
             case .failure: state.error = NSLocalizedString("无法读取图片，请重新选择文件。", comment: "")
             }
         }
-        .confirmationDialog("清空当前会话？不会删除服务端请求记录。", isPresented: $confirmClear, titleVisibility: .visible) {
+        .alert("清空当前会话？不会删除服务端请求记录。", isPresented: $confirmClear) {
             Button("清空会话", role: .destructive) { state.clear() }
             Button("取消", role: .cancel) {}
         }
@@ -224,7 +224,7 @@ import UIKit
                     Picker("项目", selection: $state.project) {
                         Text("请选择项目").tag("")
                         ForEach(state.identity.projects) { Text($0.name).tag($0.id) }
-                    }
+                    }.pickerStyle(.menu)
                     .onChange(of: state.project) { _ in
                         // Initial identity loading sets project; that load already fetches the catalog.
                         if !state.loading { state.changeProject(store: store) }
@@ -240,13 +240,13 @@ import UIKit
                         Picker("渠道", selection: $state.channel) {
                             Text("请选择渠道").tag("")
                             ForEach(state.catalog.channels) { Text($0.name).tag($0.id) }
-                        }.onChange(of: state.channel) { _ in state.chooseModel() }
+                        }.pickerStyle(.menu).onChange(of: state.channel) { _ in state.chooseModel() }
                     }
                 }
                 Picker("模型", selection: $state.parameters.model) {
                     Text("请选择模型").tag("")
                     ForEach(state.models) { Text($0.name).tag($0.id) }
-                }
+                }.pickerStyle(.menu)
                 HStack {
                     Text("温度")
                     Spacer()
@@ -259,17 +259,8 @@ import UIKit
                 }
                 Text("系统提示词").font(.caption).foregroundStyle(.secondary)
                 TextEditor(text: $state.parameters.system).frame(minHeight: 80).accessibilityLabel("系统提示词")
-                Text("参数支持与图片识别取决于所选模型。 Playground 仅支持文本与图片输入。")
-                    .font(.caption).foregroundStyle(.secondary)
             }.disabled(state.busy || state.loading)
             if state.loading { ProgressView("正在读取项目、渠道与模型…") }
-            if store.selectedInstance?.authType == .apiKey {
-                Text("使用当前实例 API Key 调用 /v1/chat/completions；项目由 Key 绑定，不使用管理员 JWT 调用此端点。")
-                    .font(.caption).foregroundStyle(.secondary)
-            } else {
-                Text("使用当前登录 JWT 调用 /admin/playground/chat，不创建临时 API Key。")
-                    .font(.caption).foregroundStyle(.secondary)
-            }
         }
     }
     private var conversation: some View {
@@ -355,7 +346,7 @@ import UIKit
                 }
             }
         } header: { Text("消息") } footer: {
-            Text("点击发送或重新生成会实际调用模型并可能计费。图片仅随消息以 data URL 发送，不调用独立上传接口。每张最多 10 MB，每次最多 8 张。")
+            Text("点击发送或重新生成会实际调用模型并可能计费。每张最多 10 MB，每次最多 8 张。")
         }
     }
     private static func imageData(_ url: String) -> Data? {

@@ -58,16 +58,16 @@ struct AdminInvitationView: View {
                 Picker("项目角色", selection: $roleID) {
                     Text("选择角色").tag("")
                     ForEach(roles, id: \.self) { role in Text(role["name"].string).tag(role["id"].string) }
-                }
+                }.pickerStyle(.menu)
                 Picker("有效期", selection: $expiresInHours) {
                     Text("1 小时").tag(1); Text("6 小时").tag(6); Text("24 小时").tag(24)
                     Text("7 天").tag(168); Text("永不过期").tag(0)
-                }
-                Picker("使用次数", selection: $maxUses) { Text("一次").tag(1); Text("不限").tag(0) }
+                }.pickerStyle(.menu)
+                Picker("使用次数", selection: $maxUses) { Text("一次").tag(1); Text("不限").tag(0) }.pickerStyle(.menu)
                 Button("创建邀请") { confirm = true }.disabled(roleID.isEmpty || session.busy || session.invalidated || !token.isEmpty)
                 if session.busy { ProgressView() }
             }
-            if !metadata.isNull { Section("已精确读回邀请") { NativeDetailFieldsView(store: session.store, value: metadata) } }
+            if !metadata.isNull { Section("结果") { NativeDetailFieldsView(store: session.store, value: metadata) } }
             if !token.isEmpty {
                 Section("邀请秘密") {
                     Button(revealed ? "隐藏邀请链接" : "显示邀请链接（持有者可注册）") { revealed.toggle() }
@@ -82,7 +82,7 @@ struct AdminInvitationView: View {
             if let error = session.error { Text(error).foregroundStyle(.red) }
         }
         .navigationTitle("创建项目邀请")
-        .confirmationDialog("确认创建注册邀请", isPresented: $confirm, titleVisibility: .visible) {
+        .alert("确认创建注册邀请", isPresented: $confirm) {
             Button("创建") { create() }
             Button("取消", role: .cancel) { }
         } message: { Text(invitationSummary) }
@@ -159,7 +159,7 @@ struct AdminRestoreView: View {
             Section("备份文件") {
                 Button("选择 JSON 备份文件") { importing = true }
                 if !fileName.isEmpty { Text(fileName) }
-                Text("备份可能包含 API Keys 和渠道凭据，只在内存处理，不打印内容。恢复可能覆盖现有配置；请先导出备份。")
+                Text("备份可能包含 API Keys 和渠道凭据。恢复可能覆盖现有配置；请先导出备份。")
                     .font(.caption).foregroundStyle(.orange)
             }
             Section("恢复选项") {
@@ -187,7 +187,7 @@ struct AdminRestoreView: View {
                 file = data; fileName = url.lastPathComponent; error = nil
             } catch { self.error = error.localizedDescription }
         }
-        .confirmationDialog("确认恢复并可能覆盖配置", isPresented: $confirm, titleVisibility: .visible) {
+        .alert("确认恢复并可能覆盖配置", isPresented: $confirm) {
             Button("恢复", role: .destructive) { restore() }
             Button("取消", role: .cancel) { }
         } message: { Text(session.connection.instance.name + "\n" + session.connection.instance.address + "\n" + fileName + "\n" + NSLocalizedString("恢复会写入多个对象，overwrite 不可自动撤回。", comment: "")) }
@@ -206,7 +206,7 @@ struct AdminRestoreView: View {
             // Exact system target read, never full snapshot / empty arrays as verification.
             let settings = try await session.read("systemVersion")
             guard !settings["version"].string.isEmpty else { throw AdminError.verification }
-            report = NSLocalizedString("服务器报告恢复完成，已读取同一实例版本；跨实体导入缺少统一读回版本，未声称每条数据均已验证。请检查恢复目标。", comment: "")
+            report = NSLocalizedString("服务器报告恢复完成，请检查恢复目标。", comment: "")
         }
     }
 }

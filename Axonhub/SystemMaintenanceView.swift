@@ -120,10 +120,9 @@ struct SystemMaintenanceView: View {
             }
         }
         .navigationTitle(NSLocalizedString("系统运维", comment: ""))
-        .confirmationDialog(
+        .alert(
             NSLocalizedString("清空全部网关缓存", comment: ""),
-            isPresented: $showClearCacheConfirm,
-            titleVisibility: .visible
+            isPresented: $showClearCacheConfirm
         ) {
             Button(NSLocalizedString("确认清理", comment: ""), role: .destructive) {
                 performClearCache()
@@ -132,10 +131,9 @@ struct SystemMaintenanceView: View {
         } message: {
             Text(NSLocalizedString("这将重置运行时路由和状态缓存，网关将在下次请求时重新加载。确定执行吗？", comment: ""))
         }
-        .confirmationDialog(
+        .alert(
             NSLocalizedString("执行存储垃圾回收 (GC)", comment: ""),
-            isPresented: $showGcConfirm,
-            titleVisibility: .visible
+            isPresented: $showGcConfirm
         ) {
             Button(NSLocalizedString("立即执行", comment: ""), role: .destructive) {
                 performGc()

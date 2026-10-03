@@ -17,42 +17,70 @@ enum GatewaySubTab: String, CaseIterable, Identifiable {
     }
 }
 
-/// Unified Gateway view seamlessly combining Channels, Models, and Provider Catalog
+/// The gateway opens directly on its working lists, not a directory of subpages.
 struct GatewayView: View {
     @ObservedObject var store: AxonStore
+    @State private var tab: GatewaySubTab = .channels
+    @State private var showingProviders = false
+    @State private var showingHealth = false
+
     var body: some View {
-        List {
-            Section {
-                VStack(alignment: .leading, spacing: 8) {
-                    Text(store.selectedInstance?.name ?? "AxonHub").font(.headline)
-                    HStack(spacing: 18) {
-                        Label(String(store.snapshot.channels.filter(\.isEnabled).count) + " / " + String(store.snapshot.channels.count), systemImage: "point.3.connected.trianglepath.dotted")
-                        Label(String(store.snapshot.models.count), systemImage: "cpu")
-                    }.font(.caption).foregroundStyle(.secondary).monospacedDigit()
-                }.padding(.vertical, 8)
+        Group {
+            switch tab {
+            case .channels: ChannelsListView(store: store, embedded: true, gatewayTab: $tab)
+            case .models: ModelsListView(store: store, embedded: true, gatewayTab: $tab)
+            case .providers: ProvidersCatalogView(store: store)
             }
-            Section("路由配置") {
-                NavigationLink { ChannelsListView(store: store) } label: {
-                    ManagementMenuRow(title: obsText("渠道"), symbol: "point.3.filled.connected.trianglepath.dotted")
-                }
-                NavigationLink { ModelsListView(store: store) } label: {
-                    ManagementMenuRow(title: obsText("模型"), symbol: "cpu")
-                }
-                NavigationLink { ProvidersCatalogView(store: store) } label: {
-                    ManagementMenuRow(title: obsText("供应商目录"), symbol: "building.2")
-                }
-            }
-            Section("运行状况") {
-                NavigationLink { ObservabilityDashboardView(store: store) } label: {
-                    ManagementMenuRow(title: obsText("渠道健康与性能"), symbol: "waveform.path.ecg")
-                }
-            }
-            if store.loading { ProgressView("正在读取服务器数据") }
-            if let error = store.error { ObservabilityErrorView(message: error) }
         }
-        .listStyle(.insetGrouped)
-        .navigationTitle("网关")
-        .refreshable { await store.refresh() }
+        .toolbar {
+            ToolbarItem(placement: .navigationBarLeading) {
+                Menu {
+                    Button { showingProviders = true } label: { Label("供应商目录", systemImage: "building.2") }
+                    Button { showingHealth = true } label: { Label("渠道健康与性能", systemImage: "waveform.path.ecg") }
+                } label: { Label("更多操作", systemImage: "ellipsis.circle") }
+            }
+        }
+        .sheet(isPresented: $showingProviders) {
+            NavigationStack {
+                ProvidersCatalogView(store: store).navigationTitle("供应商目录")
+                    .toolbar { ToolbarItem(placement: .cancellationAction) { Button("完成") { showingProviders = false } } }
+            }
+        }
+        .sheet(isPresented: $showingHealth) {
+            NavigationStack {
+                ObservabilityDashboardView(store: store)
+                    .toolbar { ToolbarItem(placement: .cancellationAction) { Button("完成") { showingHealth = false } } }
+            }
+        }
+    }
+}
+
+/// One working toolbar: module switch at left, status filter at right.
+struct GatewayListFilters: View {
+    let tab: Binding<GatewaySubTab>?
+    @Binding var status: String
+    let count: Int
+
+    var body: some View {
+        HStack(spacing: 12) {
+            if let tab = tab {
+                Picker("网关", selection: tab) {
+                    Text("渠道").tag(GatewaySubTab.channels)
+                    Text("模型").tag(GatewaySubTab.models)
+                }.pickerStyle(.segmented).frame(maxWidth: 220)
+            } else {
+                Text(String(count)).font(.subheadline).monospacedDigit().foregroundStyle(.secondary)
+            }
+            Spacer(minLength: 0)
+            Picker("状态筛选", selection: $status) {
+                Text("全部").tag("all")
+                Text("启用中").tag("enabled")
+                Text("已禁用").tag("disabled")
+            }.pickerStyle(.menu).labelsHidden()
+                .accessibilityLabel("状态筛选")
+        }
+        .padding(.horizontal, 16).padding(.vertical, 10)
+        .background(.regularMaterial)
     }
 }
 

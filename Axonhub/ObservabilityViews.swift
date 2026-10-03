@@ -127,7 +127,7 @@ struct ObservabilityFilterView: View {
                     Toggle(obsText("按创建时间升序"), isOn: $filters.ascending)
                     Picker(obsText("每页条数"), selection: $filters.size) {
                         ForEach([10, 25, 50, 100], id: \.self) { Text("\($0)").tag($0) }
-                    }
+                    }.pickerStyle(.menu)
                 }
                 if kind != .usage {
                     Section(obsText("状态（多选）")) {
@@ -150,7 +150,7 @@ struct ObservabilityFilterView: View {
                             Text(obsText("全部")).tag("all")
                             Text(obsText("是")).tag("yes")
                             Text(obsText("否")).tag("no")
-                        }
+                        }.pickerStyle(.menu)
                     }
                 }.textInputAutocapitalization(.never).autocorrectionDisabled()
                 if kind == .requests || kind == .usage {
@@ -278,7 +278,7 @@ struct ObservabilityDetailView: View {
                             .disabled(status == "retained")
                         Button(status == "retained" ? obsText("取消保留") : obsText("保护并保留")) { pendingAction = status == "retained" ? "unretain" : "retain" }
                             .disabled(status == "archived")
-                        if actionVerified { Label(obsText("操作已读回验证"), systemImage: "checkmark.circle").foregroundStyle(.green) }
+                        if actionVerified { Label(obsText("已确认"), systemImage: "checkmark.circle").foregroundStyle(.green) }
                     }.disabled(session.busy || session.invalidated)
                 }
             }
@@ -294,7 +294,7 @@ struct ObservabilityDetailView: View {
         .onChange(of: store.selectedInstance) { _ in
             session.invalidate(); record = nil; content = nil; pendingAction = nil
         }
-        .confirmationDialog(obsText("确认对当前实例的此记录执行操作？"), isPresented: Binding(get: { pendingAction != nil }, set: { if !$0 { pendingAction = nil } }), titleVisibility: .visible) {
+        .alert(obsText("确认对当前实例的此记录执行操作？"), isPresented: Binding(get: { pendingAction != nil }, set: { if !$0 { pendingAction = nil } })) {
             if let action = pendingAction {
                 Button(obsText("确认执行"), role: action == "archive" ? .destructive : nil) {
                     pendingAction = nil
@@ -394,7 +394,7 @@ struct ObservabilityRelatedView: View {
                 Picker(obsText("状态"), selection: $status) {
                     Text(obsText("全部")).tag("all")
                     ForEach(relation == .traces ? ["active", "archived", "retained"] : ["pending", "processing", "completed", "failed", "canceled"], id: \.self) { Text(NativeAdminLabels.value($0)).tag($0) }
-                }.disabled(session.busy || session.invalidated)
+                }.pickerStyle(.menu).disabled(session.busy || session.invalidated)
                 }
                 if let total = total { Text(String(format: obsText("共 %lld 条，已读取 %lld 条"), Int64(total), Int64(records.count))).monospacedDigit() }
                 if let error = session.error { ObservabilityErrorView(message: error) }

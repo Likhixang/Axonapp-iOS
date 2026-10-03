@@ -4,29 +4,38 @@ import SwiftUI
 struct KeyEditorField: View {
     let title: String
     @Binding var text: String
-    @State private var visible = true
+    var onRemove: (() -> Void)? = nil
+    @State private var visible = false
     @State private var copied = false
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Text(title).font(.caption).foregroundStyle(.secondary)
-            HStack(alignment: .top, spacing: 4) {
+        HStack(alignment: .center, spacing: 4) {
+            VStack(alignment: .leading, spacing: 4) {
+                Text(title).font(.caption).foregroundStyle(.secondary)
                 if visible {
                     TextField(title, text: $text, axis: .vertical)
                         .font(.body.monospaced()).lineLimit(1...6)
+                        .accessibilityLabel(title)
                 } else {
                     SecureField(title, text: $text).font(.body.monospaced())
+                        .accessibilityLabel(title)
                 }
-                Button { visible.toggle() } label: {
-                    Image(systemName: visible ? "eye.slash" : "eye").frame(width: 44, height: 44)
-                }.accessibilityLabel(obsText(visible ? "隐藏" : "显示"))
-                Button { NativeSecretClipboard.copy(text); copied = true } label: {
-                    Image(systemName: copied ? "checkmark" : "doc.on.doc").frame(width: 44, height: 44)
-                }.disabled(text.isEmpty).accessibilityLabel(obsText(copied ? "已复制" : "复制"))
-            }.buttonStyle(.borderless)
-        }
+            }.frame(maxWidth: .infinity, alignment: .leading)
+            Button { visible.toggle() } label: {
+                Image(systemName: visible ? "eye.slash" : "eye").frame(width: 44, height: 44)
+            }.accessibilityLabel(obsText(visible ? "隐藏" : "显示") + " " + title)
+            Button { NativeSecretClipboard.copy(text); copied = true } label: {
+                Image(systemName: copied ? "checkmark" : "doc.on.doc").frame(width: 44, height: 44)
+            }.disabled(text.isEmpty).accessibilityLabel(obsText(copied ? "已复制" : "复制") + " " + title)
+            if let onRemove = onRemove {
+                Button(role: .destructive, action: onRemove) {
+                    Image(systemName: "minus.circle").frame(width: 44, height: 44)
+                }.accessibilityLabel(obsText("移除") + " " + title)
+            }
+        }.buttonStyle(.borderless)
         .textInputAutocapitalization(.never).autocorrectionDisabled()
         .onChange(of: text) { _ in copied = false }
+        .onDisappear { visible = false; copied = false }
         .padding(.vertical, 3)
     }
 }

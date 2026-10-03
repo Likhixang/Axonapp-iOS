@@ -120,10 +120,9 @@ struct ProjectsListView: View {
                 ProjectInvitationContainerView(store: store, projectID: item.id)
             }
         }
-        .confirmationDialog(
+        .alert(
             NSLocalizedString("删除项目", comment: ""),
-            isPresented: Binding(get: { deletingItem != nil }, set: { if !$0 { deletingItem = nil } }),
-            titleVisibility: .visible
+            isPresented: Binding(get: { deletingItem != nil }, set: { if !$0 { deletingItem = nil } })
         ) {
             Button(NSLocalizedString("永久删除", comment: ""), role: .destructive) {
                 if let item = deletingItem {

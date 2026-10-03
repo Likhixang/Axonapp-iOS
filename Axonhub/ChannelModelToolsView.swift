@@ -29,7 +29,7 @@ struct ChannelModelToolsView: View {
                 Button("清空选择") { selection.removeAll() }
                 Picker("操作", selection: $action) {
                     ForEach(ManagedBatchAction.allCases.filter { channel || ![.recover, .sync, .test].contains($0) }) { Text(NativeAdminLabels.value($0.rawValue)).tag($0) }
-                }
+                }.pickerStyle(.menu)
                 Button("确认批量操作", role: action == .delete ? .destructive : nil) { capturedIDs = selection.sorted(); confirmation = true }.disabled(selection.isEmpty || uncertain)
             }
             if channel {
@@ -37,7 +37,7 @@ struct ChannelModelToolsView: View {
                     NavigationLink("渠道覆盖模板") { ChannelTemplatesView(store: store, target: target) }
                     Picker("操作", selection: $importMode) {
                         Text("导入渠道").tag("import"); Text("按密钥创建渠道").tag("create"); Text("排序权重").tag("ordering")
-                    }.onChange(of: importMode) { mode in
+                    }.pickerStyle(.menu).onChange(of: importMode) { mode in
                         input = ChannelInputSchema.seed(mode == "create" ? "BulkCreateChannelsInput" : mode == "ordering" ? "BulkUpdateChannelOrderingInput" : "BulkImportChannelsInput")
                     }
                     NavigationLink("编辑批量配置") { Form { ChannelSchemaFields(value: $input, type: importType, path: "input", secure: importMode != "ordering") } }
@@ -86,8 +86,9 @@ struct ChannelModelToolsView: View {
             if let id = target.entityID { selection = [id]; action = .archive }
             if channel { importMode = "import"; input = ChannelInputSchema.seed("BulkImportChannelsInput") }
         }
-        .confirmationDialog("确认执行操作", isPresented: $confirmation, titleVisibility: .visible) {
+        .alert("确认执行操作", isPresented: $confirmation) {
             Button("执行", role: action == .delete && !capturedIDs.isEmpty ? .destructive : nil) { execute() }
+            Button("取消", role: .cancel) { }
         } message: { Text("\(target.instance.name) · \(target.instance.address)\n\(capturedIDs.isEmpty ? obsText("批量输入") : NativeAdminLabels.value(action.rawValue) + ": " + capturedNames.joined(separator: ", "))") }
     }
     private var capturedNames: [String] {

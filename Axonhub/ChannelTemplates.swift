@@ -79,7 +79,7 @@ struct ChannelTemplatesView: View {
                     Picker("模板", selection: $selectedID) {
                         Text("新增模板").tag("")
                         ForEach(records, id: \.idString) { Text($0["name"].string).tag($0["id"].string) }
-                    }.onChange(of: selectedID) { id in
+                    }.pickerStyle(.menu).onChange(of: selectedID) { id in
                         guard let row = records.first(where: { $0["id"].string == id }) else { input = .object(["name": .string("")]); return }
                         input = .object(row.object.filter { ChannelInputSchema.fields["CreateChannelOverrideTemplateInput"]?[$0.key] != nil })
                     }
@@ -91,7 +91,7 @@ struct ChannelTemplatesView: View {
                     ForEach(store.snapshot.channels) { row in
                         Toggle(row.name, isOn: Binding(get: { selection.contains(row.id) }, set: { if $0 { selection.insert(row.id) } else { selection.remove(row.id) } }))
                     }
-                    Picker("模式", selection: $mode) { Text("合并").tag("MERGE"); Text("替换").tag("REPLACE") }
+                    Picker("模式", selection: $mode) { Text("合并").tag("MERGE"); Text("替换").tag("REPLACE") }.pickerStyle(.menu)
                     Text("替换会清除现有覆盖项；合并保留不冲突的项。").font(.caption)
                     Button("应用模板") { pending = "apply"; confirmation = true }.disabled(selectedID.isEmpty || selection.isEmpty || uncertain)
                     Button("清空覆盖项", role: .destructive) { pending = "clear"; confirmation = true }.disabled(selection.isEmpty || uncertain)
@@ -99,8 +99,9 @@ struct ChannelTemplatesView: View {
             }
             if let message = message { Text(message).font(.caption) }
         }.navigationTitle("渠道覆盖模板").disabled(busy || store.managementBusy)
-        .confirmationDialog("确认敏感操作", isPresented: $confirmation, titleVisibility: .visible) {
-            Button("授权并执行") { execute() }
+        .alert("确认敏感操作", isPresented: $confirmation) {
+            Button("授权并执行", role: pending == "delete" || pending == "clear" ? .destructive : nil) { execute() }
+            Button("取消", role: .cancel) { }
         } message: { Text("\(target.instance.name) · \(target.instance.address)\n\(pendingTitle)") }
         .onDisappear { input = .object([:]); records = [] }
     }

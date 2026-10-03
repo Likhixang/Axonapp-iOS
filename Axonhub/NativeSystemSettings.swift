@@ -116,8 +116,9 @@ struct NativeSettingsEditor: View {
         .disabled(session.busy || session.invalidated || uncertain)
         .toolbar { Button("保存") { save() }.disabled(!loaded || uncertain) }
         .task { if read != "webhookNotifierConfig" { await load() } }
-        .confirmationDialog("读取敏感配置", isPresented: $showAuthorization, titleVisibility: .visible) {
+        .alert("读取敏感配置", isPresented: $showAuthorization) {
             Button("读取") { authorized = true; Task { await load() } }
+            Button("取消", role: .cancel) { }
         }
         .onDisappear { value = .null; baseline = .null }
     }
@@ -227,7 +228,7 @@ struct NativeDefaultStorageView: View {
     @State private var selected = ""
     var body: some View {
         Form {
-            Picker("默认数据存储", selection: $selected) { ForEach(storages, id: \.self) { Text($0["name"].string).tag($0["id"].string) } }
+            Picker("默认数据存储", selection: $selected) { ForEach(storages, id: \.self) { Text($0["name"].string).tag($0["id"].string) } }.pickerStyle(.menu)
             if let error = session.error { ObservabilityErrorView(message: error) }
         }.navigationTitle("默认数据存储")
         .toolbar { Button("保存") { session.start { let op = try session.schema.operation("updateDefaultDataStorage"); _ = try await session.execute(op, variables: .object(["input": .object(["dataStorageID": .string(selected)])])) } } }
