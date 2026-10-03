@@ -63,7 +63,9 @@ struct ModelsListView: View {
     @ObservedObject var store: AxonStore
     var embedded = false
     var gatewayTab: Binding<GatewaySubTab>? = nil
+    var gatewaySearch: Binding<String>? = nil
     @State private var filterText = ""
+    private var query: String { gatewaySearch?.wrappedValue ?? filterText }
     @State private var statusFilter = "all"
     @State private var message: String?
     @State private var editor: ManagementTarget?
@@ -77,8 +79,8 @@ struct ModelsListView: View {
     @State private var actionBusy = false
 
     var filteredModels: [ModelItem] {
-        store.snapshot.models.filter { (statusFilter == "all" || (statusFilter == "enabled" ? $0.isEnabled : !$0.isEnabled)) && (filterText.isEmpty || $0.name.localizedCaseInsensitiveContains(filterText) ||
-            $0.modelID.localizedCaseInsensitiveContains(filterText) || $0.developer.localizedCaseInsensitiveContains(filterText) ) }
+        store.snapshot.models.filter { (statusFilter == "all" || (statusFilter == "enabled" ? $0.isEnabled : !$0.isEnabled)) && (query.isEmpty || $0.name.localizedCaseInsensitiveContains(query) ||
+            $0.modelID.localizedCaseInsensitiveContains(query) || $0.developer.localizedCaseInsensitiveContains(query) ) }
     }
     var body: some View {
         List {
@@ -91,7 +93,7 @@ struct ModelsListView: View {
         }
         .listStyle(.plain)
         .safeAreaInset(edge: .top, spacing: 0) { listFilters }
-        .searchable(text: $filterText, prompt: NSLocalizedString("搜索模型名称、ID 或厂商", comment: ""))
+        .modifier(GatewaySearchPresentation(enabled: gatewaySearch == nil, text: $filterText, prompt: obsText("搜索模型名称、ID 或厂商")))
         .refreshable { await store.refresh() }
         .navigationTitle(embedded ? obsText("网关") : obsText("模型列表"))
         .toolbar { if store.canManage {

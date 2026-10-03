@@ -66,7 +66,9 @@ struct ChannelsListView: View {
     @ObservedObject var store: AxonStore
     var embedded = false
     var gatewayTab: Binding<GatewaySubTab>? = nil
+    var gatewaySearch: Binding<String>? = nil
     @State private var filterText = ""
+    private var query: String { gatewaySearch?.wrappedValue ?? filterText }
     @State private var statusFilter = "all"
     @State private var message: String?
     @State private var editor: ManagementTarget?
@@ -81,8 +83,8 @@ struct ChannelsListView: View {
     @State private var actionBusy = false
 
     var filteredChannels: [ChannelItem] {
-        store.snapshot.channels.filter { (statusFilter == "all" || (statusFilter == "enabled" ? $0.isEnabled : !$0.isEnabled)) && (filterText.isEmpty || $0.name.localizedCaseInsensitiveContains(filterText) ||
-            $0.type.localizedCaseInsensitiveContains(filterText) || $0.tags.contains { $0.localizedCaseInsensitiveContains(filterText) } ) }
+        store.snapshot.channels.filter { (statusFilter == "all" || (statusFilter == "enabled" ? $0.isEnabled : !$0.isEnabled)) && (query.isEmpty || $0.name.localizedCaseInsensitiveContains(query) ||
+            $0.type.localizedCaseInsensitiveContains(query) || $0.tags.contains { $0.localizedCaseInsensitiveContains(query) } ) }
     }
     var body: some View {
         List {
@@ -95,7 +97,7 @@ struct ChannelsListView: View {
         }
         .listStyle(.plain)
         .safeAreaInset(edge: .top, spacing: 0) { listFilters }
-        .searchable(text: $filterText, prompt: NSLocalizedString("搜索渠道名称、类型或标签", comment: ""))
+        .modifier(GatewaySearchPresentation(enabled: gatewaySearch == nil, text: $filterText, prompt: obsText("搜索渠道名称、类型或标签")))
         .refreshable { await store.refresh() }
         .navigationTitle(embedded ? obsText("网关") : obsText("渠道管理"))
         .toolbar { if store.canManage {

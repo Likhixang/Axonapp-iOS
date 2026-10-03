@@ -23,15 +23,23 @@ struct GatewayView: View {
     @State private var tab: GatewaySubTab = .channels
     @State private var showingProviders = false
     @State private var showingHealth = false
+    @State private var channelSearch = ""
+    @State private var modelSearch = ""
+
+    private var searchText: Binding<String> { tab == .models ? $modelSearch : $channelSearch }
+    private var searchPrompt: String {
+        obsText(tab == .models ? "搜索模型名称、ID 或厂商" : "搜索渠道名称、类型或标签")
+    }
 
     var body: some View {
         Group {
             switch tab {
-            case .channels: ChannelsListView(store: store, embedded: true, gatewayTab: $tab)
-            case .models: ModelsListView(store: store, embedded: true, gatewayTab: $tab)
+            case .channels: ChannelsListView(store: store, embedded: true, gatewayTab: $tab, gatewaySearch: $channelSearch)
+            case .models: ModelsListView(store: store, embedded: true, gatewayTab: $tab, gatewaySearch: $modelSearch)
             case .providers: ProvidersCatalogView(store: store)
             }
         }
+        .searchable(text: searchText, placement: .navigationBarDrawer(displayMode: .always), prompt: searchPrompt)
         .toolbar {
             ToolbarItem(placement: .navigationBarLeading) {
                 Menu {
@@ -52,6 +60,19 @@ struct GatewayView: View {
                     .toolbar { ToolbarItem(placement: .cancellationAction) { Button("完成") { showingHealth = false } } }
             }
         }
+    }
+}
+
+/// Standalone lists own search; embedded lists use their stable gateway parent.
+struct GatewaySearchPresentation: ViewModifier {
+    let enabled: Bool
+    @Binding var text: String
+    let prompt: String
+
+    @ViewBuilder func body(content: Content) -> some View {
+        if enabled {
+            content.searchable(text: $text, placement: .navigationBarDrawer(displayMode: .always), prompt: prompt)
+        } else { content }
     }
 }
 
