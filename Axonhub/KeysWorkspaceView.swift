@@ -98,7 +98,7 @@ struct KeysWorkspaceView: View {
         .listStyle(.plain)
         .safeAreaInset(edge: .top, spacing: 0) { listFilters }
         .navigationTitle("密钥")
-        .searchable(text: $search, prompt: obsText("搜索密钥名称"))
+        .searchable(text: $search, placement: .navigationBarDrawer(displayMode: .always), prompt: obsText("搜索密钥名称"))
         .toolbar {
             ToolbarItemGroup(placement: .navigationBarTrailing) {
                 if selecting {

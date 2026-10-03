@@ -170,7 +170,7 @@ struct APIKeysListView: View {
         }
         .listStyle(.plain)
         .navigationTitle(NSLocalizedString("API 密钥", comment: ""))
-        .searchable(text: $search, prompt: NSLocalizedString("搜索密钥名称或 ID", comment: ""))
+        .searchable(text: $search, placement: .navigationBarDrawer(displayMode: .always), prompt: NSLocalizedString("搜索密钥名称或 ID", comment: ""))
         .toolbar {
             ToolbarItem(placement: .navigationBarTrailing) {
                 Button {
