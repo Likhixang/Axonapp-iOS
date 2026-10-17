@@ -88,7 +88,7 @@ def swift_checks():
     core = (ROOT / 'Axonhub/Core.swift').read_text()
     core = core[core.index('indirect enum JSON:'):core.index('/// Safe user-facing errors')]
     management = (ROOT / 'Axonhub/Management.swift').read_text().split('extension AxonClient {')[0]
-    advanced = (ROOT / 'Axonhub/ChannelAdvancedInputs.swift').read_text().split('/// Lazy navigation')[0].replace('import SwiftUI', '')
+    advanced = (ROOT / 'Axonhub/ChannelAdvancedInputs.swift').read_text().split('struct ChannelSchemaFields')[0].replace('import SwiftUI', '')
     semantics = (ROOT / 'Axonhub/ChannelSemantics.swift').read_text()
     defaults = (ROOT / 'Axonhub/ChannelDefaults.swift').read_text()
     formatting = (ROOT / 'Axonhub/DisplayFormat.swift').read_text()

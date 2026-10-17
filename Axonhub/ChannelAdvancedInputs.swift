@@ -143,6 +143,7 @@ enum ChannelInputSchema {
 /// Inline editors type-erase recursive children to keep the SwiftUI view type finite.
 /// Composite fields expand in place by default. Sensitive strings stay in ephemeral
 /// view state and KeyEditorField only; never copied to defaults/logs.
+/// Lazy navigation
 struct ChannelSchemaFields: View {
     @Binding var value: JSON
     let type: String
