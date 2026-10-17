@@ -88,23 +88,6 @@
       }
     }
   ],
-  "CheckModelRoute": [
-    {
-      "label": "upstream model routing",
-      "variables": {
-        "associations": [
-          {
-            "type": "model",
-            "priority": 0,
-            "disabled": false,
-            "modelId": {
-              "modelId": "upstream-chat"
-            }
-          }
-        ]
-      }
-    }
-  ],
   "CreateChannel": [
     {
       "label": "openai",

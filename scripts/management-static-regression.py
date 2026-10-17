@@ -131,11 +131,11 @@ class ContractRegression(unittest.TestCase):
 
     def test_secret_reads_have_explicit_authorization_and_secure_ui(self):
         self.assertNotIn('credentials {', self.management.split('func channelDetail')[1].split('func modelDetail')[0])
-        self.assertIn('authorizeSecrets = true',self.editor)
-        self.assertIn('Read into protected fields',self.editor)
-        self.assertIn('ChannelSchemaFields(value: $channel.credentials',self.editor)
+        self.assertIn('await loadSecrets()', self.editor)
+        self.assertIn('clearSecrets()', self.editor)
+        self.assertIn('canEditChannelSecrets', self.editor)
         schema_ui=(ROOT/'Axonhub/ChannelAdvancedInputs.swift').read_text()
-        self.assertIn('SecureField(path, text: stringBinding)',schema_ui)
+        self.assertIn('LabeledEditorField(fieldLabel, text: stringBinding, secure: true)',schema_ui)
         self.assertNotIn('UserDefaults',schema_ui)
         self.assertNotIn('print(',schema_ui)
 
@@ -156,10 +156,10 @@ class ContractRegression(unittest.TestCase):
         self.assertIn('.interactiveDismissDisabled(saving)', self.editor)
         for file in ['ChannelsView.swift', 'ModelsView.swift']:
             text = (ROOT / 'Axonhub' / file).read_text()
-            self.assertIn('.confirmationDialog', text)
+            self.assertIn('.alert', text)
             self.assertNotIn('try?', text)
-            self.assertNotIn('.swipeActions', text)
-            self.assertIn('if canManage', text)
+            self.assertIn('.swipeActions', text)
+            self.assertIn('canManage', text)
         core = (ROOT / 'Axonhub/Core.swift').read_text()
         self.assertNotIn('graphQLError(safeMessage)', core)
         self.assertNotIn('root?["errors"].array.first?["message"]', core)

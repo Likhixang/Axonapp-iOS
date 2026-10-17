@@ -18,12 +18,19 @@ struct ModelRowView<Actions: View>: View {
                         HStack(alignment: .firstTextBaseline) {
                             Text(model.name).font(.headline).lineLimit(2)
                             Spacer(minLength: 8)
-                            Text(NativeAdminLabels.value(model.status))
-                                .font(.caption).foregroundStyle(model.isEnabled ? Color.green : .secondary)
+                            HStack(spacing: 4) {
+                                Circle()
+                                    .fill(model.isEnabled ? Color.green : Color(.systemGray3))
+                                    .frame(width: 7, height: 7)
+                                Text(NativeAdminLabels.value(model.status))
+                                    .font(.caption.weight(.medium))
+                                    .foregroundStyle(model.isEnabled ? Color.green : .secondary)
+                            }
                         }
                         HStack(spacing: 8) {
                             if model.modelID != model.name { Text(model.modelID).font(.caption.monospaced()).lineLimit(1) }
-                            Text(model.developer + " · " + NativeAdminLabels.value(model.type)).lineLimit(1)
+                            let desc = model.developer.isEmpty ? NativeAdminLabels.value(model.type) : (model.developer + " · " + NativeAdminLabels.value(model.type))
+                            Text(desc).lineLimit(1)
                         }.font(.caption).foregroundStyle(.secondary)
                     }
                 }.frame(maxWidth: .infinity, minHeight: 44, alignment: .leading).contentShape(Rectangle())

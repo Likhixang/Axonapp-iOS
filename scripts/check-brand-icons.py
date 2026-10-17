@@ -35,11 +35,11 @@ def main():
     assert colored <= names and {'google','deepseek','qwen','claude','minimax'} <= colored
     app=(ROOT/'Axonhub/App.swift').read_text()
     assert '.tint(resolvedAccentColor(hex))' in app and '.accentColor(resolvedAccentColor(hex))' in app
-    for filename in ['NativePresentation.swift','ManagementInstanceControls.swift','ManagementDashboardView.swift','KeysWorkspaceView.swift','APIKeysView.swift']:
+    for filename in ['NativePresentation.swift','ManagementInstanceControls.swift','ManagementDashboardView.swift','KeysWorkspaceView.swift']:
         assert 'foregroundStyle(Color.accentColor)' in (ROOT/'Axonhub'/filename).read_text(), filename
     health=(ROOT/'Axonhub/ChannelHealthViews.swift').read_text()
     assert 'foregroundStyle(.green)' in health and 'Color.orange' in health
-    assert '.foregroundStyle(.green)' in (ROOT/'Axonhub/APIKeysView.swift').read_text()
+    assert 'Color.green' in (ROOT/'Axonhub/KeysWorkspaceView.swift').read_text()
     print(f'PASS: {len(colored)} upstream color variants use original rendering; theme tint/accent bridge and semantic colors retained')
     if args.compiled:
         compiled=json.loads(Path(args.compiled).read_text())

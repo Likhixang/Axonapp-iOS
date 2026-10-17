@@ -915,7 +915,7 @@
     "Optional null on business writes rejected unless explicit clear field; SDL null alone is not clear",
     "Role update ignores level/projectID, project update ignores profiles/status; dedicated mutations used"
   ],
-  "nativeEntry": "AdminCenterView(store: AxonStore)",
+  "nativeEntry": "ManagementWorkspaceView(store: AxonStore)",
   "restoreContract": "AdminRestore + multipart operations/map/0 file; dedicated native AdminRestoreView",
   "verificationLimits": [
     "Write-only storage credentials/user passwords are excluded from string equality and UI explains limitation",

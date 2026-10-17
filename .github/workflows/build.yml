@@ -6,7 +6,6 @@ on:
     paths:
       - 'Axonhub/**'
       - 'AxonhubTests/**'
-      - 'AxonhubUITests/**'
       - 'scripts/**'
       - '!scripts/**/*.md'
       - 'project.yml'
@@ -34,28 +33,23 @@ jobs:
           brew install xcodegen
           xcodegen generate
       - name: Verify native presentation coverage and real Swift behavior
-        if: github.event_name == 'workflow_dispatch'
         run: python3 -B scripts/check-presentation.py --swift
       - name: Verify bundled brand marks and native icon mapping
-        if: github.event_name == 'workflow_dispatch'
         run: python3 -B scripts/check-brand-icons.py --swift
       - name: Check Swift integration source guards
-        if: github.event_name == 'workflow_dispatch'
         run: python3 -B scripts/check-swift-integration.py
       - name: Verify editor regressions with host Swift (no simulator)
-        if: github.event_name == 'workflow_dispatch'
         run: python3 -B scripts/check-editor-regressions.py --swift
       - name: Check all localization resources and source coverage
-        if: github.event_name == 'workflow_dispatch'
         run: python3 scripts/check-localizations.py
       - name: Verify all GraphQL operations against official deployed schema
-        if: github.event_name == 'workflow_dispatch'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           python3 -m venv build/contract-venv
-          build/contract-venv/bin/pip install 'graphql-core==3.3.0'
+          build/contract-venv/bin/pip install 'graphql-core==3.3.0' 'tree-sitter>=0.25,<0.27' 'tree-sitter-swift>=0.7,<0.8'
           build/contract-venv/bin/python scripts/check-api-contract.py
+          build/contract-venv/bin/python scripts/management-static-regression.py
       - name: Verify system icon source variants
         run: |
           python3 - <<'PY'
@@ -101,7 +95,10 @@ jobs:
           cp -R build/Axonapp.xcarchive/Products/Applications/Axonapp.app build/ipa/Payload/
           (cd build/ipa && zip -qry ../Axonapp.ipa Payload)
           python3 - <<'PY'
-          import zipfile, plistlib
+          import zipfile, plistlib, re, pathlib
+          proj = pathlib.Path('project.yml').read_text()
+          m_ver = re.search(r'MARKETING_VERSION:\s*["\']?([^"\'\n]+)', proj).group(1).strip()
+          m_build = re.search(r'CURRENT_PROJECT_VERSION:\s*["\']?([^"\'\n]+)', proj).group(1).strip()
           path='build/Axonapp.ipa'
           with zipfile.ZipFile(path) as z:
               assert z.testzip() is None
@@ -112,13 +109,13 @@ jobs:
               for key in ['CFBundleIcons','CFBundleIcons~ipad']:
                   assert info[key]['CFBundlePrimaryIcon']['CFBundleIconName'] == 'AppIcon'
                   assert set(info[key]['CFBundleAlternateIcons']) == {'AppIconLight','AppIconDark'}
-              assert info['CFBundleShortVersionString']=='1.0.2'
-              assert info['CFBundleVersion']=='36'
+              assert info['CFBundleShortVersionString']==m_ver, f"Version mismatch: {info['CFBundleShortVersionString']} vs {m_ver}"
+              assert info['CFBundleVersion']==m_build, f"Build mismatch: {info['CFBundleVersion']} vs {m_build}"
               assert set(info.get('CFBundleLocalizations', [])) == {'zh-Hans', 'zh-Hant', 'en', 'ja', 'ko'}
               assert 'Payload/Axonapp.app/Axonapp' in z.namelist()
               notices = z.read('Payload/Axonapp.app/BrandIcons-LICENSE.txt').decode()
               assert 'MIT License' in notices and 'Apache License' in notices
-              print(info['CFBundleIdentifier'],info['MinimumOSVersion'],info['CFBundleShortVersionString'])
+              print(info['CFBundleIdentifier'],info['MinimumOSVersion'],info['CFBundleShortVersionString'],info['CFBundleVersion'])
           PY
           python3 scripts/check-localizations.py --ipa build/Axonapp.ipa
           shasum -a 256 build/Axonapp.ipa > build/SHA256SUMS.txt

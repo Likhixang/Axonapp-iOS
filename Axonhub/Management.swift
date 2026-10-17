@@ -367,15 +367,6 @@ extension AxonClient {
         }
         return value.array.contains(where: hasTruncatedCondition)
     }
-    func routeMatches(associations: JSON) async throws -> Bool {
-        let query = """
-        query CheckModelRoute($associations: [ModelAssociationInput!]!) {
-          queryModelChannelConnections(associations: $associations) { channel { id status } models { requestModel actualModel } }
-        }
-        """
-        let data = try await graphql(query: query, variables: ["associations": associations.foundationObject()])
-        return data["queryModelChannelConnections"].array.contains { $0["channel"]["status"].string == "enabled" && !$0["models"].array.isEmpty }
-    }
     func createChannel(input: [String: JSON]) async throws -> String {
         let mutation = """
         mutation CreateChannel($input: CreateChannelInput!) { createChannel(input: $input) { id } }

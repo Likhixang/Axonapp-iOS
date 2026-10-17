@@ -40,16 +40,6 @@ struct NeutralActionStyle: ButtonStyle {
     }
 }
 
-struct NeutralActionFooter<Content: View>: View {
-    @ViewBuilder let content: Content
-    var body: some View {
-        VStack(spacing: 0) {
-            Divider().opacity(0.55)
-            content.padding(12)
-        }.background(Color(.secondarySystemBackground).opacity(0.45))
-    }
-}
-
 extension View {
     func neutralCard() -> some View { modifier(NeutralCardSurface()) }
 }

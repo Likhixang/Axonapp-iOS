@@ -378,8 +378,13 @@ struct KeySummaryRow: View {
             HStack(spacing: 8) {
                 Text(NativeDisplay.name(value)).font(.body.weight(.semibold)).lineLimit(1)
                 Spacer(minLength: 0)
-                Text(NativeAdminLabels.value(value["status"].string)).font(.caption)
-                    .foregroundStyle(value["status"].string == "enabled" ? Color.green : .secondary)
+                HStack(spacing: 4) {
+                    Circle()
+                        .fill(value["status"].string == "enabled" ? Color.green : Color(.systemGray3))
+                        .frame(width: 7, height: 7)
+                    Text(NativeAdminLabels.value(value["status"].string)).font(.caption.weight(.medium))
+                        .foregroundStyle(value["status"].string == "enabled" ? Color.green : .secondary)
+                }
             }
             HStack(spacing: 8) {
                 Text(value["type"].string == "user" ? obsText("项目密钥") : NativeAdminLabels.value(value["type"].string))

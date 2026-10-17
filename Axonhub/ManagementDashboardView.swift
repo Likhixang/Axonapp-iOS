@@ -35,7 +35,9 @@ struct ManagementDashboardView: View {
                         }.frame(maxWidth: .infinity, minHeight: 44)
                     }.buttonStyle(.plain)
                 }
-            }.padding()
+            }
+            .padding()
+            .padding(.bottom, 24)
         }
         .background(Color(.systemGroupedBackground))
         .navigationTitle("仪表盘")
@@ -210,5 +212,37 @@ enum ManagementFormat {
         guard !value.isNull else { return "—" }
         if case .string(let text) = value { return DisplayFormat.money(text) ?? "—" }
         return DisplayFormat.money(value.number)
+    }
+}
+
+struct StatCardView: View {
+    let title: String
+    let value: String
+    let icon: String
+    let tint: Color
+    @ScaledMetric(relativeTo: .body) private var cardHeight: CGFloat = 116
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack {
+                Text(title)
+                    .font(.subheadline)
+                    .foregroundColor(.secondary)
+                    .lineLimit(2, reservesSpace: true)
+                Spacer()
+                Image(systemName: icon).symbolVariant(.fill)
+                    .foregroundStyle(tint)
+                    .font(.body)
+            }
+
+            Text(value)
+                .font(.system(.title2, design: .rounded).weight(.semibold))
+                .monospacedDigit().lineLimit(1).minimumScaleFactor(0.7)
+                .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .padding(16)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .frame(height: cardHeight, alignment: .topLeading)
+        .neutralCard()
     }
 }

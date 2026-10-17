@@ -125,7 +125,6 @@ extension AxonClient {
             catch { self.error = error.localizedDescription }
         }
     }
-    func clearTransient() { result = .null; error = nil; status = "" }
     func execute(_ operation: AdminOperation, variables original: JSON, baseline: JSON = .null) async throws -> JSON {
         try validate()
         var variables = original

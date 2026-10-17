@@ -19,11 +19,20 @@ struct ChannelRowView<Actions: View>: View {
                         HStack(alignment: .firstTextBaseline) {
                             Text(channel.name).font(.headline).lineLimit(2)
                             Spacer(minLength: 8)
-                            Text(NativeAdminLabels.value(channel.status))
-                                .font(.caption).foregroundStyle(channel.isEnabled ? Color.green : .secondary)
+                            HStack(spacing: 4) {
+                                Circle()
+                                    .fill(channel.isEnabled ? Color.green : Color(.systemGray3))
+                                    .frame(width: 7, height: 7)
+                                Text(NativeAdminLabels.value(channel.status))
+                                    .font(.caption.weight(.medium))
+                                    .foregroundStyle(channel.isEnabled ? Color.green : .secondary)
+                            }
                         }
                         HStack(spacing: 8) {
-                            Text(NativeAdminLabels.value(channel.type)).lineLimit(1)
+                            let typeLabel = NativeAdminLabels.value(channel.type)
+                            if channel.name.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() != typeLabel.lowercased() && channel.name.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() != channel.type.lowercased() {
+                                Text(typeLabel).lineLimit(1)
+                            }
                             if !channel.tags.isEmpty { Text(channel.tags.joined(separator: " · ")).lineLimit(1) }
                         }.font(.caption).foregroundStyle(.secondary)
                         if channel.errorMessage != nil { Label("渠道存在服务端错误", systemImage: "exclamationmark.circle").font(.caption).foregroundStyle(.orange) }

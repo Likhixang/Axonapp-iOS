@@ -74,11 +74,10 @@ class EditorRegression(unittest.TestCase):
             self.assertIn('APIKeyValueRow(', source)
         keys = (ROOT / 'Axonhub/KeysWorkspaceView.swift').read_text()
         self.assertNotIn('NavigationLink { NativeEntityDetailView', keys)
-        self.assertIn('.navigationDestination(isPresented:', keys)
+        self.assertIn('.sheet(item: $editingKey', keys)
 
     def test_no_automatic_simulator_action(self):
-        screenshots = (ROOT / '.github/workflows/screenshots.yml').read_text()
-        self.assertNotIn('  push:', screenshots)
+        self.assertFalse((ROOT / '.github/workflows/screenshots.yml').exists())
         build = (ROOT / '.github/workflows/build.yml').read_text()
         self.assertNotIn('simctl', build)
         self.assertNotIn('xcodebuild test', build)

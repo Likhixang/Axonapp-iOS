@@ -65,7 +65,6 @@ def check(schema, fixtures=None):
         fixtures = {}
         paths = sorted((ROOT / 'scripts').glob('*contract-fixtures.json'))
         paths += sorted((ROOT / 'scripts').glob('*graphql-fixtures.json'))
-        # Playground REST payload fixtures use a different schema and are checked separately.
         paths += sorted((ROOT / 'AxonhubTests').glob('*graphql-fixtures.json'))
         for path in paths:
             for name, samples in json.loads(path.read_text()).items():
