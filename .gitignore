@@ -1,11 +1,17 @@
-.DS_Store
-build/
-*.xcodeproj
-*.xcworkspace
-.swiftpm/
+# Xcode
+*.xcodeproj/
+*.xcworkspace/
 xcuserdata/
 DerivedData/
+build/
 *.ipa
-archive.log
-__pycache__/
-*.pyc
+*.dSYM.zip
+*.dSYM
+
+# SwiftPM
+.build/
+.swiftpm/
+Package.resolved
+
+# macOS
+.DS_Store
