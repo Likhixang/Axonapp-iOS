@@ -1,134 +1,103 @@
 name: Build IPA
+
 on:
   push:
-    branches: ['**']
-    tags: ['v*']
-    paths:
-      - 'Axonhub/**'
-      - 'AxonhubTests/**'
-      - 'scripts/**'
-      - '!scripts/**/*.md'
-      - 'project.yml'
-      - '.github/workflows/build.yml'
+    branches: [main]
+    tags: ["v*"]
+  pull_request:
   workflow_dispatch:
-permissions:
-  contents: read
+
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   build:
+    name: Test & build unsigned IPA
     runs-on: macos-15
-    timeout-minutes: 35
+    timeout-minutes: 40
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v4
-      - name: Select Xcode 26 and install XcodeGen
+
+      - name: Select latest Xcode 16
         run: |
-          set -euo pipefail
-          python3 - <<'PY'
-          import glob, subprocess
-          apps = sorted(glob.glob('/Applications/Xcode_26*.app'))
-          if not apps:
-              raise SystemExit('Xcode 26 missing')
-          subprocess.run(['sudo','xcode-select','-s',apps[-1]+'/Contents/Developer'],check=True)
-          PY
+          XCODE=$(ls -d /Applications/Xcode_16*.app | sort -V | tail -1)
+          echo "Using $XCODE"
+          sudo xcode-select -s "$XCODE/Contents/Developer"
           xcodebuild -version
-          brew install xcodegen
+          swift --version
+
+      - name: Unit tests (AxonCore package)
+        run: swift test --parallel
+
+      - name: Generate Xcode project
+        run: |
+          brew list xcodegen >/dev/null 2>&1 || brew install xcodegen
           xcodegen generate
-      - name: Verify native presentation coverage and real Swift behavior
-        run: python3 -B scripts/check-presentation.py --swift
-      - name: Verify bundled brand marks and native icon mapping
-        run: python3 -B scripts/check-brand-icons.py --swift
-      - name: Check Swift integration source guards
-        run: python3 -B scripts/check-swift-integration.py
-      - name: Verify editor regressions with host Swift (no simulator)
-        run: python3 -B scripts/check-editor-regressions.py --swift
-      - name: Check all localization resources and source coverage
-        run: python3 scripts/check-localizations.py
-      - name: Verify all GraphQL operations against official deployed schema
-        env:
-          GH_TOKEN: ${{ github.token }}
+
+      - name: Set build number
         run: |
-          python3 -m venv build/contract-venv
-          build/contract-venv/bin/pip install 'graphql-core==3.3.0' 'tree-sitter>=0.25,<0.27' 'tree-sitter-swift>=0.7,<0.8'
-          build/contract-venv/bin/python scripts/check-api-contract.py
-          build/contract-venv/bin/python scripts/management-static-regression.py
-      - name: Verify system icon source variants
+          sed -i '' "s/CURRENT_PROJECT_VERSION: \"1\"/CURRENT_PROJECT_VERSION: \"${GITHUB_RUN_NUMBER}\"/" project.yml
+          xcodegen generate
+
+      - name: Build (Release, unsigned)
         run: |
-          python3 - <<'PY'
-          import json, pathlib, struct
-          base = pathlib.Path('Axonhub/Assets.xcassets')
-          for name in ['AppIcon', 'AppIconLight', 'AppIconDark']:
-              folder = base / (name + '.appiconset')
-              images = json.loads((folder / 'Contents.json').read_text())['images']
-              light = [x for x in images if not x.get('appearances')]
-              dark = [x for x in images if {'appearance': 'luminosity', 'value': 'dark'} in x.get('appearances', [])]
-              assert len(light) == len(dark) == 1, name
-              for variant in light + dark:
-                  raw = (folder / variant['filename']).read_bytes()
-                  assert raw[:8] == b'\x89PNG\r\n\x1a\n'
-                  assert struct.unpack('>II', raw[16:24]) == (1024, 1024)
-                  if variant in dark:
-                      assert raw[25] == 6, f'{name}: Dark must have RGBA transparency'
-              print(name, 'Any/Dark source manifest and PNG format verified')
-          PY
-      - name: Build unsigned device archive and IPA
+          mkdir -p build
+          xcodebuild \
+            -project Axon.xcodeproj \
+            -scheme Axon \
+            -configuration Release \
+            -sdk iphoneos \
+            -destination 'generic/platform=iOS' \
+            -derivedDataPath build/DerivedData \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            build > build/xcodebuild.log 2>&1 || {
+              echo "::group::Compiler errors"
+              grep -E "error:" build/xcodebuild.log | sort -u | head -80 || true
+              echo "::endgroup::"
+              tail -40 build/xcodebuild.log
+              exit 1
+            }
+          grep -E "warning:" build/xcodebuild.log | sort -u | head -40 || true
+          tail -3 build/xcodebuild.log
+
+      - name: Package IPA
+        id: package
         run: |
-          set -euo pipefail
-          xcodebuild archive -project Axonapp.xcodeproj -scheme Axonhub -configuration Release -destination 'generic/platform=iOS' -archivePath build/Axonapp.xcarchive CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY='' | tee archive.log
-          xcrun --sdk iphoneos assetutil --info build/Axonapp.xcarchive/Products/Applications/Axonapp.app/Assets.car > build/icon-assets.json
-          python3 - <<'PY'
-          import json
-          assets=json.load(open('build/icon-assets.json'))
-          icons=[x for x in assets if 'AppIcon' in x.get('Name','')]
-          print(json.dumps(icons,indent=2))
-          assert icons, 'Compiled AppIcon is missing'
-          for name in ['AppIcon', 'AppIconLight', 'AppIconDark']:
-              for idiom in ['phone', 'pad']:
-                  variants = [x for x in icons if x.get('Name') == name and x.get('Idiom') == idiom and x.get('AssetType') == 'Icon Image']
-                  light = [x for x in variants if not x.get('Appearance')]
-                  dark = [x for x in variants if x.get('Appearance') == 'UIAppearanceDark']
-                  assert light and dark, f'{name} Any/Dark variants missing for {idiom}'
-                  assert all(x.get('Opaque') is False for x in dark), f'{name}: Dark alpha lost for {idiom}'
-                  assert all(x.get('Opaque') is True for x in light), f'{name}: Any must remain opaque for {idiom}'
-                  assert {x['SHA1Digest'] for x in light}.isdisjoint({x['SHA1Digest'] for x in dark}), f'{name} variants identical for {idiom}'
-          PY
-          python3 -B scripts/check-brand-icons.py --compiled build/icon-assets.json
-          mkdir -p build/ipa/Payload
-          cp -R build/Axonapp.xcarchive/Products/Applications/Axonapp.app build/ipa/Payload/
-          (cd build/ipa && zip -qry ../Axonapp.ipa Payload)
-          python3 - <<'PY'
-          import zipfile, plistlib, re, pathlib
-          proj = pathlib.Path('project.yml').read_text()
-          m_ver = re.search(r'MARKETING_VERSION:\s*["\']?([^"\'\n]+)', proj).group(1).strip()
-          m_build = re.search(r'CURRENT_PROJECT_VERSION:\s*["\']?([^"\'\n]+)', proj).group(1).strip()
-          path='build/Axonapp.ipa'
-          with zipfile.ZipFile(path) as z:
-              assert z.testzip() is None
-              info=plistlib.loads(z.read('Payload/Axonapp.app/Info.plist'))
-              assert info['MinimumOSVersion']=='16.0'
-              assert info['CFBundleIdentifier']=='com.khixang.axon'
-              assert info['CFBundleDisplayName']=='Axonapp'
-              for key in ['CFBundleIcons','CFBundleIcons~ipad']:
-                  assert info[key]['CFBundlePrimaryIcon']['CFBundleIconName'] == 'AppIcon'
-                  assert set(info[key]['CFBundleAlternateIcons']) == {'AppIconLight','AppIconDark'}
-              assert info['CFBundleShortVersionString']==m_ver, f"Version mismatch: {info['CFBundleShortVersionString']} vs {m_ver}"
-              assert info['CFBundleVersion']==m_build, f"Build mismatch: {info['CFBundleVersion']} vs {m_build}"
-              assert set(info.get('CFBundleLocalizations', [])) == {'zh-Hans', 'zh-Hant', 'en', 'ja', 'ko'}
-              assert 'Payload/Axonapp.app/Axonapp' in z.namelist()
-              notices = z.read('Payload/Axonapp.app/BrandIcons-LICENSE.txt').decode()
-              assert 'MIT License' in notices and 'Apache License' in notices
-              print(info['CFBundleIdentifier'],info['MinimumOSVersion'],info['CFBundleShortVersionString'],info['CFBundleVersion'])
-          PY
-          python3 scripts/check-localizations.py --ipa build/Axonapp.ipa
-          shasum -a 256 build/Axonapp.ipa > build/SHA256SUMS.txt
-      - uses: actions/upload-artifact@v4
+          APP=build/DerivedData/Build/Products/Release-iphoneos/Axon.app
+          test -d "$APP"
+          VERSION=$(/usr/libexec/PlistBuddy -c 'Print CFBundleShortVersionString' "$APP/Info.plist")
+          BUILD=$(/usr/libexec/PlistBuddy -c 'Print CFBundleVersion' "$APP/Info.plist")
+          NAME="AxonHub-${VERSION}-${BUILD}-unsigned.ipa"
+          rm -rf build/ipa && mkdir -p build/ipa/Payload
+          cp -R "$APP" build/ipa/Payload/
+          (cd build/ipa && zip -qry "../$NAME" Payload)
+          ls -lh "build/$NAME"
+          echo "name=$NAME" >> "$GITHUB_OUTPUT"
+          echo "path=build/$NAME" >> "$GITHUB_OUTPUT"
+
+      - name: Upload IPA artifact
+        uses: actions/upload-artifact@v4
         with:
-          name: Axonapp
-          path: |
-            build/Axonapp.ipa
-            build/SHA256SUMS.txt
-            build/icon-assets.json
+          name: ${{ steps.package.outputs.name }}
+          path: ${{ steps.package.outputs.path }}
           if-no-files-found: error
-      - uses: actions/upload-artifact@v4
-        if: always()
+          retention-days: 30
+
+      - name: Upload build log on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
         with:
-          name: build-logs
-          path: archive.log
+          name: xcodebuild-log
+          path: build/xcodebuild.log
+          if-no-files-found: ignore
+
+      - name: Publish release (tags only)
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: ${{ steps.package.outputs.path }}

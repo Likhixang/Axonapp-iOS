@@ -1,66 +1,48 @@
-name: Axonapp
+name: Axon
 options:
   bundleIdPrefix: com.khixang
   deploymentTarget:
-    iOS: "16.0"
-  developmentLanguage: "zh-Hans"
-  knownRegions: ["zh-Hans", "zh-Hant", "en", "ja", "ko", "Base"]
+    iOS: "17.0"
+  createIntermediateGroups: true
+  generateEmptyDirectories: false
+
 settings:
   base:
     SWIFT_VERSION: "5.0"
-    MARKETING_VERSION: "1.0.4"
-    CURRENT_PROJECT_VERSION: "37"
-    CODE_SIGNING_ALLOWED: NO
-    TARGETED_DEVICE_FAMILY: "1,2"
+    MARKETING_VERSION: "2.0.0"
+    CURRENT_PROJECT_VERSION: "1"
+    ENABLE_USER_SCRIPT_SANDBOXING: YES
+    DEAD_CODE_STRIPPING: YES
+
 targets:
-  Axonhub:
+  Axon:
     type: application
     platform: iOS
     sources:
-      - path: Axonhub
-    info:
-      path: build/Info.plist
-      properties:
-        CFBundleLocalizations:
-          - zh-Hans
-          - zh-Hant
-          - en
-          - ja
-          - ko
-        UISupportedInterfaceOrientations:
-          - UIInterfaceOrientationPortrait
-        UISupportedInterfaceOrientations~ipad:
-          - UIInterfaceOrientationPortrait
-          - UIInterfaceOrientationPortraitUpsideDown
-          - UIInterfaceOrientationLandscapeLeft
-          - UIInterfaceOrientationLandscapeRight
+      - path: Axon
     settings:
       base:
+        PRODUCT_NAME: Axon
         PRODUCT_BUNDLE_IDENTIFIER: com.khixang.axon
-        PRODUCT_NAME: Axonapp
+        TARGETED_DEVICE_FAMILY: "1,2"
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
         GENERATE_INFOPLIST_FILE: YES
-        INFOPLIST_KEY_CFBundleDisplayName: Axonapp
+        INFOPLIST_FILE: Axon/Resources/Info.plist
+        INFOPLIST_KEY_CFBundleDisplayName: AxonHub
         INFOPLIST_KEY_UILaunchScreen_Generation: YES
         INFOPLIST_KEY_UIApplicationSceneManifest_Generation: YES
-        INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents: YES
-        INFOPLIST_KEY_NSLocalNetworkUsageDescription: 连接本地或局域网内的 AxonHub AI 网关
-        INFOPLIST_KEY_NSAppTransportSecurity_NSAllowsArbitraryLoads: YES
-        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
-        ASSETCATALOG_COMPILER_ALTERNATE_APPICON_NAMES: "AppIconLight AppIconDark"
-        CFBundleDevelopmentRegion: "zh-Hans"
-  AxonhubTests:
-    type: bundle.unit-test
-    platform: iOS
-    sources: [AxonhubTests]
-    dependencies:
-      - target: Axonhub
-    settings:
-      base:
-        GENERATE_INFOPLIST_FILE: YES
+        INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone: "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight"
+        INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad: "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight"
+        INFOPLIST_KEY_ITSAppUsesNonExemptEncryption: NO
+        CODE_SIGN_STYLE: Automatic
+
 schemes:
-  Axonhub:
+  Axon:
     build:
       targets:
-        Axonhub: all
-    test:
-      targets: [AxonhubTests]
+        Axon: all
+    run:
+      config: Debug
+    archive:
+      config: Release
