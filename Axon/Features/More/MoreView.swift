@@ -44,11 +44,18 @@ struct MoreView: View {
             }
 
             Section {
+                NavigationLink { AccentColorSettingsView() } label: {
+                    LabeledContent {
+                        Circle().fill(Theme.accent).frame(width: 18, height: 18)
+                    } label: {
+                        Label("强调色", systemImage: "paintpalette")
+                    }
+                }
                 NavigationLink { TabBarEditorView() } label: {
                     Label("自定义底栏", systemImage: "dock.rectangle")
                 }
             } footer: {
-                Text("底栏放哪些页面、什么顺序都由你定，没放上去的页面会出现在这里。")
+                Text("强调色会应用到整个 App。底栏放哪些页面、什么顺序都由你定，没放上去的页面会出现在这里。")
             }
 
             Section("服务器") {

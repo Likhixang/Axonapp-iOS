@@ -8,7 +8,6 @@ struct AxonApp: App {
         WindowGroup {
             RootView()
                 .environment(session)
-                .tint(Theme.accent)
         }
     }
 }
@@ -30,6 +29,7 @@ struct RootView: View {
             }
         }
         .animation(.easeInOut(duration: 0.25), value: session.phase)
+        .tint(Theme.accent)
         .task { await session.restore() }
     }
 }
