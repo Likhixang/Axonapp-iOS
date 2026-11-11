@@ -242,29 +242,59 @@ struct AxonService: Sendable {
         return page(result.requests)
     }
 
-    func requestDetail(id: String) async throws -> RequestDetail {
-        struct R: Decodable { let node: RequestDetail? }
-        let result: R = try await client.graphQL("""
-        query($id: ID!) {
-          node(id: $id) {
-            ... on Request {
-              id createdAt modelID format source status stream clientIP userAgent reasoningEffort
-              metricsLatencyMs metricsFirstTokenLatencyMs metricsReasoningDurationMs traceID contentSaved
-              requestHeaders requestBody responseHeaders responseBody responseChunks
+    /// Fields AxonHub's `Request` resolvers need *loaded on the object* before they can return stored content.
+    ///
+    /// AxonHub only fetches the columns a GraphQL query selects. Its body resolvers then read
+    /// `status` (the response body and chunks are returned only for completed requests), `dataStorageID`
+    /// and `projectID` (to find bodies kept in a file / S3 / GCS / WebDAV storage), and `stream` (chunks).
+    /// Leaving any of them out makes the server answer `{}` / `[]` even when the content is stored.
+    /// The upstream web console selects the same fields next to the payloads.
+    static let requestPayloadFields = """
+    id status stream projectID dataStorageID
+    requestHeaders requestBody responseHeaders responseBody responseChunks
+    """
+
+    /// Same as `requestPayloadFields` for one upstream execution; its storage key also needs `requestID`.
+    static let executionPayloadFields = """
+    id status stream projectID requestID dataStorageID
+    requestHeaders requestBody responseHeaders responseBody responseChunks
+    """
+
+    static let requestDetailQuery = """
+    query($id: ID!) {
+      node(id: $id) {
+        ... on Request {
+          \(requestPayloadFields)
+          createdAt modelID format source clientIP userAgent reasoningEffort
+          metricsLatencyMs metricsFirstTokenLatencyMs metricsReasoningDurationMs traceID
+          channel { id name }
+          apiKey { id name }
+          \(usageFields)
+          executions(first: 20, orderBy: { field: CREATED_AT, direction: ASC }) {
+            edges { node {
+              id createdAt modelID upstreamModelID format status stream errorMessage responseStatusCode
+              metricsLatencyMs metricsFirstTokenLatencyMs requestURL
               channel { id name }
-              apiKey { id name }
-              \(Self.usageFields)
-              executions(first: 20, orderBy: { field: CREATED_AT, direction: ASC }) {
-                edges { node {
-                  id createdAt modelID upstreamModelID format status stream errorMessage responseStatusCode
-                  metricsLatencyMs metricsFirstTokenLatencyMs requestURL
-                  channel { id name }
-                } }
-              }
-            }
+            } }
           }
         }
-        """, variables: ["id": .string(id)])
+      }
+    }
+    """
+
+    static let executionPayloadQuery = """
+    query($id: ID!) {
+      node(id: $id) {
+        ... on RequestExecution {
+          \(executionPayloadFields)
+        }
+      }
+    }
+    """
+
+    func requestDetail(id: String) async throws -> RequestDetail {
+        struct R: Decodable { let node: RequestDetail? }
+        let result: R = try await client.graphQL(Self.requestDetailQuery, variables: ["id": .string(id)])
         guard let node = result.node else { throw APIError.graphQL(["请求不存在或没有权限查看"]) }
         return node
     }
@@ -272,13 +302,7 @@ struct AxonService: Sendable {
     /// Request / response payloads of one upstream execution, loaded on demand.
     func executionPayload(id: String) async throws -> ExecutionPayload {
         struct R: Decodable { let node: ExecutionPayload? }
-        let result: R = try await client.graphQL("""
-        query($id: ID!) {
-          node(id: $id) {
-            ... on RequestExecution { id requestHeaders requestBody responseBody responseChunks }
-          }
-        }
-        """, variables: ["id": .string(id)])
+        let result: R = try await client.graphQL(Self.executionPayloadQuery, variables: ["id": .string(id)])
         guard let node = result.node else { throw APIError.graphQL(["执行记录不存在或没有权限查看"]) }
         return node
     }

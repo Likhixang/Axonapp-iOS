@@ -4,7 +4,8 @@ import UIKit
 // MARK: - Theme
 
 enum Theme {
-    static let accent = Color("AccentColor")
+    /// The user's accent colour (iOS system blue by default); see `AccentSettings`.
+    static var accent: Color { AccentSettings.shared.color }
     static let success = Color.green
     static let warning = Color.orange
     static let danger = Color.red

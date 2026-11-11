@@ -301,10 +301,19 @@ struct RequestExecution: Decodable, Identifiable, Hashable, Sendable {
 /// One upstream attempt with the payloads AxonHub sent to and got back from the channel.
 struct ExecutionPayload: Decodable, Hashable, Sendable {
     let id: String
+    let status: String?
+    let stream: Bool?
+    /// Selected so AxonHub can locate the stored bodies; it is an `Int` on executions, an `ID` on requests.
+    let projectID: JSONValue?
+    let requestID: String?
+    let dataStorageID: String?
     let requestHeaders: JSONValue?
     let requestBody: JSONValue?
+    let responseHeaders: JSONValue?
     let responseBody: JSONValue?
     let responseChunks: [JSONValue]?
+
+    var requestStatus: RequestStatus { RequestStatus(rawValue: status ?? "") ?? .pending }
 }
 
 struct ExecutionList: Decodable, Hashable, Sendable {
@@ -350,7 +359,8 @@ struct RequestDetail: Decodable, Identifiable, Hashable, Sendable {
     let metricsFirstTokenLatencyMs: Int?
     let metricsReasoningDurationMs: Int?
     let traceID: String?
-    let contentSaved: Bool?
+    let projectID: JSONValue?
+    let dataStorageID: String?
     let requestHeaders: JSONValue?
     let requestBody: JSONValue?
     let responseHeaders: JSONValue?

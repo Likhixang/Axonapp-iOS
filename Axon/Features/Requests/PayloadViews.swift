@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Headers, body, readable reply and stream chunks of a request or a response.
+/// Headers, body, readable reply and stream chunks of a request or a response, shown inline.
 struct PayloadSections: View {
     enum Kind {
         case request, response
@@ -8,26 +8,21 @@ struct PayloadSections: View {
     }
 
     let kind: Kind
+    var status: RequestStatus = .completed
     let headers: JSONValue?
     let payload: JSONValue?
     let chunks: [JSONValue]?
 
-    private var unwrappedBody: JSONValue? {
-        guard let payload, !payload.isEmptyPayload else { return nil }
-        return JSONValue.unwrapped(payload)
-    }
-
-    private var parsed: ParsedResponse {
-        kind == .response ? ResponseParser.parse(body: payload, chunks: chunks) : ParsedResponse()
-    }
+    private var storedBody: JSONValue? { PayloadText.body(payload) }
 
     var body: some View {
-        let parsed = parsed
+        let bodyValue = storedBody
+        let parsed = kind == .response ? ResponseParser.parse(body: payload, chunks: chunks) : ParsedResponse()
         if kind == .response, !parsed.isEmpty {
-            ParsedReplySection(parsed: parsed, rebuiltFromChunks: (unwrappedBody == nil) && !(chunks ?? []).isEmpty)
+            ParsedReplySection(parsed: parsed, rebuiltFromChunks: bodyValue == nil && !(chunks ?? []).isEmpty)
         }
 
-        if kind == .request, let messages = RequestPreview.messages(in: unwrappedBody), !messages.isEmpty {
+        if kind == .request, let messages = RequestPreview.messages(in: bodyValue), !messages.isEmpty {
             Section("对话消息 (\(messages.count))") {
                 ForEach(Array(messages.enumerated()), id: \.offset) { _, message in
                     VStack(alignment: .leading, spacing: 4) {
@@ -41,31 +36,15 @@ struct PayloadSections: View {
             }
         }
 
-        Section("原始\(kind.title)") {
-            if let headers, !headers.isEmptyPayload {
-                NavigationLink {
-                    JSONTextView(title: "\(kind.title)头", text: JSONValue.unwrapped(headers).prettyPrinted)
-                } label: {
-                    Label("\(kind.title)头", systemImage: "list.bullet.indent")
-                }
-            }
-            if let payload = unwrappedBody {
-                let text = payload.prettyPrinted
-                NavigationLink {
-                    JSONTextView(title: "\(kind.title)体", text: text)
-                } label: {
-                    VStack(alignment: .leading, spacing: 6) {
-                        LabeledContent {
-                            Text(Fmt.bytes(text.utf8.count)).font(.caption)
-                        } label: {
-                            Label("\(kind.title)体", systemImage: "curlybraces")
-                        }
-                        Text(String(text.prefix(400)))
-                            .font(.caption2.monospaced())
-                            .foregroundStyle(.secondary)
-                            .lineLimit(6)
-                    }
-                }
+        HeadersSection(title: "\(kind.title)头", headers: headers)
+
+        Section {
+            if let bodyValue {
+                BodyPreview(title: "\(kind.title)体", text: bodyValue.prettyPrinted)
+            } else {
+                Text(PayloadText.emptyBodyReason(isResponse: kind == .response, status: status))
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
             }
             if let chunks, !chunks.isEmpty {
                 NavigationLink {
@@ -79,10 +58,82 @@ struct PayloadSections: View {
                     }
                 }
             }
-            if unwrappedBody == nil, (chunks ?? []).isEmpty {
-                Text("没有\(kind.title)内容")
+        } header: {
+            Text("\(kind.title)体")
+        }
+    }
+}
+
+/// Header lines listed in place; long values wrap and can be selected.
+private struct HeadersSection: View {
+    let title: String
+    let headers: JSONValue?
+    @State private var showAll = false
+    private static let collapsedCount = 12
+
+    var body: some View {
+        let lines = PayloadText.headerLines(headers)
+        Section {
+            if lines.isEmpty {
+                Text("没有\(title)").font(.footnote).foregroundStyle(.secondary)
+            } else {
+                let visible = showAll ? lines : Array(lines.prefix(Self.collapsedCount))
+                ForEach(visible, id: \.self) { line in
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(line.name).font(.caption.weight(.semibold)).foregroundStyle(.secondary)
+                        Text(line.value.isEmpty ? "—" : line.value)
+                            .font(.caption.monospaced())
+                            .textSelection(.enabled)
+                    }
+                    .padding(.vertical, 1)
+                }
+                if lines.count > Self.collapsedCount {
+                    Button(showAll ? "收起" : "显示全部 \(lines.count) 项") {
+                        withAnimation { showAll.toggle() }
+                    }
                     .font(.footnote)
-                    .foregroundStyle(.secondary)
+                }
+            }
+        } header: {
+            HStack {
+                Text(title)
+                Spacer()
+                if !lines.isEmpty, let headers {
+                    Button {
+                        Clipboard.copy(JSONValue.unwrapped(headers).prettyPrinted)
+                    } label: {
+                        Image(systemName: "doc.on.doc")
+                    }
+                    .font(.caption)
+                    .accessibilityLabel("拷贝\(title)")
+                }
+            }
+        }
+    }
+}
+
+/// The start of a body inline, with the whole text one tap away.
+private struct BodyPreview: View {
+    let title: String
+    let text: String
+
+    var body: some View {
+        let preview = PayloadText.preview(text)
+        Text(preview.text)
+            .font(.caption.monospaced())
+            .textSelection(.enabled)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .contextMenu {
+                Button("拷贝\(title)", systemImage: "doc.on.doc") { Clipboard.copy(text) }
+                ShareLink(item: text) { Label("分享", systemImage: "square.and.arrow.up") }
+            }
+        NavigationLink {
+            JSONTextView(title: title, text: text)
+        } label: {
+            LabeledContent {
+                Text(Fmt.bytes(text.utf8.count)).font(.caption)
+            } label: {
+                Label(preview.truncated ? "查看完整\(title)" : "全屏查看", systemImage: "arrow.up.left.and.arrow.down.right")
             }
         }
     }
@@ -173,9 +224,12 @@ struct ExecutionPayloadView: View {
                         .listRowInsets(EdgeInsets())
                     }
                     if tab == .request {
-                        PayloadSections(kind: .request, headers: payload.requestHeaders, payload: payload.requestBody, chunks: nil)
+                        PayloadSections(kind: .request, status: execution.requestStatus,
+                                        headers: payload.requestHeaders, payload: payload.requestBody, chunks: nil)
                     } else {
-                        PayloadSections(kind: .response, headers: nil, payload: payload.responseBody, chunks: payload.responseChunks)
+                        PayloadSections(kind: .response, status: execution.requestStatus,
+                                        headers: payload.responseHeaders, payload: payload.responseBody,
+                                        chunks: payload.responseChunks)
                     }
                 }
                 .listStyle(.insetGrouped)

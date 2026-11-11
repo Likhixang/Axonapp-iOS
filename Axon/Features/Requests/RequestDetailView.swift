@@ -113,16 +113,14 @@ struct RequestDetailView: View {
                 .pickerStyle(.segmented)
                 .listRowBackground(Color.clear)
                 .listRowInsets(EdgeInsets())
-            } footer: {
-                if detail.contentSaved == false {
-                    Text("服务器没有保存这次请求的内容（AxonHub 系统设置里可以打开内容存储）。")
-                }
             }
 
             if payloadTab == .request {
-                PayloadSections(kind: .request, headers: detail.requestHeaders, payload: detail.requestBody, chunks: nil)
+                PayloadSections(kind: .request, status: detail.requestStatus,
+                                headers: detail.requestHeaders, payload: detail.requestBody, chunks: nil)
             } else {
-                PayloadSections(kind: .response, headers: detail.responseHeaders, payload: detail.responseBody,
+                PayloadSections(kind: .response, status: detail.requestStatus,
+                                headers: detail.responseHeaders, payload: detail.responseBody,
                                 chunks: detail.responseChunks)
             }
         }
