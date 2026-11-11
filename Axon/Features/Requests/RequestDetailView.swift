@@ -97,7 +97,11 @@ struct RequestDetailView: View {
             if !executions.isEmpty {
                 Section("上游执行 (\(executions.count))") {
                     ForEach(Array(executions.enumerated()), id: \.element.id) { index, execution in
-                        ExecutionRow(index: index + 1, execution: execution)
+                        NavigationLink {
+                            ExecutionPayloadView(index: index + 1, execution: execution)
+                        } label: {
+                            ExecutionRow(index: index + 1, execution: execution)
+                        }
                     }
                 }
             }
@@ -109,33 +113,17 @@ struct RequestDetailView: View {
                 .pickerStyle(.segmented)
                 .listRowBackground(Color.clear)
                 .listRowInsets(EdgeInsets())
+            } footer: {
+                if detail.contentSaved == false {
+                    Text("服务器没有保存这次请求的内容（AxonHub 系统设置里可以打开内容存储）。")
+                }
+            }
 
-                let payload = payloadTab == .request ? detail.requestBody : detail.responseBody
-                let headers = payloadTab == .request ? detail.requestHeaders : detail.responseHeaders
-                if let headers, !headers.isEmptyPayload {
-                    NavigationLink {
-                        JSONTextView(title: "\(payloadTab.rawValue)头", text: headers.prettyPrinted)
-                    } label: {
-                        Label("\(payloadTab.rawValue)头", systemImage: "list.bullet.indent")
-                    }
-                }
-                if let payload, !payload.isEmptyPayload {
-                    NavigationLink {
-                        JSONTextView(title: "\(payloadTab.rawValue)体", text: payload.prettyPrinted)
-                    } label: {
-                        VStack(alignment: .leading, spacing: 6) {
-                            Label("\(payloadTab.rawValue)体", systemImage: "curlybraces")
-                            Text(String(payload.prettyPrinted.prefix(400)))
-                                .font(.caption2.monospaced())
-                                .foregroundStyle(.secondary)
-                                .lineLimit(6)
-                        }
-                    }
-                } else {
-                    Text(detail.contentSaved == false ? "服务器未保存请求内容" : "没有内容")
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
-                }
+            if payloadTab == .request {
+                PayloadSections(kind: .request, headers: detail.requestHeaders, payload: detail.requestBody, chunks: nil)
+            } else {
+                PayloadSections(kind: .response, headers: detail.responseHeaders, payload: detail.responseBody,
+                                chunks: detail.responseChunks)
             }
         }
         .listStyle(.insetGrouped)
@@ -178,30 +166,3 @@ private struct ExecutionRow: View {
     }
 }
 
-struct JSONTextView: View {
-    let title: String
-    let text: String
-    @State private var wrap = true
-
-    var body: some View {
-        ScrollView(wrap ? .vertical : [.vertical, .horizontal]) {
-            Text(text.count > 200_000 ? String(text.prefix(200_000)) + "\n…（内容过长已截断）" : text)
-                .font(.caption.monospaced())
-                .textSelection(.enabled)
-                .frame(maxWidth: wrap ? .infinity : nil, alignment: .leading)
-                .padding()
-        }
-        .background(Color(.systemBackground))
-        .navigationTitle(title)
-        .navigationBarTitleDisplayMode(.inline)
-        .toolbar {
-            ToolbarItemGroup(placement: .topBarTrailing) {
-                Button { wrap.toggle() } label: {
-                    Image(systemName: wrap ? "text.alignleft" : "arrow.left.and.right.text.vertical")
-                }
-                Button { Clipboard.copy(text) } label: { Image(systemName: "doc.on.doc") }
-                ShareLink(item: text) { Image(systemName: "square.and.arrow.up") }
-            }
-        }
-    }
-}

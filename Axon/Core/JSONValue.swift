@@ -72,6 +72,11 @@ extension JSONValue {
         return nil
     }
 
+    var boolValue: Bool? {
+        if case .bool(let value) = self { return value }
+        return nil
+    }
+
     var doubleValue: Double? {
         switch self {
         case .number(let value): return value
@@ -123,5 +128,14 @@ extension JSONValue {
         case .object(let value): return value.isEmpty
         default: return false
         }
+    }
+}
+
+extension JSONValue {
+    /// Converts any `Encodable` value into a `JSONValue` tree (nil optionals are omitted).
+    init?<T: Encodable>(encoding value: T) {
+        guard let data = try? JSONEncoder().encode(value),
+              let decoded = try? JSONDecoder().decode(JSONValue.self, from: data) else { return nil }
+        self = decoded
     }
 }

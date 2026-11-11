@@ -8,7 +8,8 @@ enum Theme {
     static let success = Color.green
     static let warning = Color.orange
     static let danger = Color.red
-    static let cardRadius: CGFloat = 16
+    /// iOS 26 uses rounder, concentric corners to match Liquid Glass.
+    static var cardRadius: CGFloat { GlassSupport.isAvailable ? 22 : 16 }
 
     static func color(for status: RequestStatus) -> Color {
         switch status {
@@ -162,9 +163,11 @@ struct StatusDot: View {
 
 struct Tag: View {
     let text: String
+    var color: Color? = nil
     var body: some View {
         Text(text)
             .font(.caption2.monospaced())
+            .foregroundStyle(color ?? Color.primary)
             .lineLimit(1)
             .padding(.horizontal, 6)
             .padding(.vertical, 2)
@@ -190,7 +193,7 @@ struct Card<Content: View>: View {
         }
         .padding(16)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: Theme.cardRadius, style: .continuous))
+        .adaptiveCardBackground()
     }
 }
 
@@ -223,7 +226,7 @@ struct MetricTile: View {
         }
         .padding(14)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: Theme.cardRadius, style: .continuous))
+        .adaptiveCardBackground()
     }
 }
 
@@ -262,7 +265,7 @@ struct ErrorStateView: View {
         } actions: {
             if let retry {
                 Button("重试") { Task { await retry() } }
-                    .buttonStyle(.borderedProminent)
+                    .adaptiveButtonStyle(prominent: true)
             }
         }
     }
@@ -323,8 +326,8 @@ struct ToastModifier: ViewModifier {
                     .foregroundStyle(toast.isError ? Theme.danger : Theme.success)
                     .padding(.horizontal, 16)
                     .padding(.vertical, 10)
-                    .background(.regularMaterial, in: Capsule())
-                    .shadow(color: .black.opacity(0.12), radius: 12, y: 4)
+                    .adaptiveGlass(in: Capsule())
+                    .shadow(color: .black.opacity(GlassSupport.isAvailable ? 0 : 0.12), radius: 12, y: 4)
                     .padding(.bottom, 24)
                     .padding(.horizontal)
                     .transition(.move(edge: .bottom).combined(with: .opacity))

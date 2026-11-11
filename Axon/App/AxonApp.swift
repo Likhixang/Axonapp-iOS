@@ -63,45 +63,42 @@ struct BrandMark: View {
 
 struct MainTabView: View {
     @Environment(SessionStore.self) private var session
-    @State private var selection: AppTab = .dashboard
+    @AppStorage(TabLayout.storageKey) private var storedPinned = ""
+    @State private var selection: String = AppDestination.dashboard.rawValue
 
-    enum AppTab: Hashable { case dashboard, requests, channels, playground, more }
+    static let moreTag = "more"
+
+    private var available: [AppDestination] {
+        AppDestination.available(isAdmin: session.canManageSystem, isOwner: session.isOwner)
+    }
+
+    private var pinned: [AppDestination] {
+        TabLayout.resolve(stored: storedPinned, available: available)
+    }
 
     var body: some View {
         TabView(selection: $selection) {
-            NavigationStack { DashboardView() }
-                .tabItem { Label("概览", systemImage: "chart.bar.xaxis") }
-                .tag(AppTab.dashboard)
-
-            NavigationStack { RequestsView() }
-                .tabItem { Label("请求", systemImage: "list.bullet.rectangle") }
-                .tag(AppTab.requests)
-
-            if session.canManageSystem {
-                NavigationStack { ChannelsView() }
-                    .tabItem { Label("渠道", systemImage: "server.rack") }
-                    .tag(AppTab.channels)
-            } else {
-                NavigationStack { APIKeysView() }
-                    .tabItem { Label("密钥", systemImage: "key") }
-                    .tag(AppTab.channels)
+            ForEach(pinned) { destination in
+                NavigationStack { destination.rootView }
+                    .tabItem { Label(destination.tabTitle, systemImage: destination.systemImage) }
+                    .tag(destination.rawValue)
             }
-
-            NavigationStack { PlaygroundView() }
-                .tabItem { Label("对话", systemImage: "bubble.left.and.text.bubble.right") }
-                .tag(AppTab.playground)
 
             NavigationStack { MoreView() }
                 .tabItem { Label("更多", systemImage: "ellipsis.circle") }
-                .tag(AppTab.more)
+                .tag(Self.moreTag)
         }
+        .adaptiveTabBarMinimize()
+        .onChange(of: storedPinned) { _, _ in keepSelectionValid() }
+        .onChange(of: session.canManageSystem) { _, _ in keepSelectionValid() }
+        .onAppear { keepSelectionValid() }
         .overlay(alignment: .top) {
             if let message = session.bannerMessage {
                 Text(message)
                     .font(.footnote)
                     .padding(.horizontal, 14)
                     .padding(.vertical, 8)
-                    .background(.regularMaterial, in: Capsule())
+                    .adaptiveGlass(in: Capsule())
                     .padding(.top, 4)
                     .onTapGesture { session.bannerMessage = nil }
                     .task {
@@ -109,6 +106,30 @@ struct MainTabView: View {
                         session.bannerMessage = nil
                     }
             }
+        }
+    }
+
+    private func keepSelectionValid() {
+        if selection == Self.moreTag { return }
+        if !pinned.contains(where: { $0.rawValue == selection }) {
+            selection = pinned.first?.rawValue ?? Self.moreTag
+        }
+    }
+}
+
+extension AppDestination {
+    @MainActor @ViewBuilder
+    var rootView: some View {
+        switch self {
+        case .dashboard: DashboardView()
+        case .requests: RequestsView()
+        case .channels: ChannelsView()
+        case .models: ModelsView()
+        case .apiKeys: APIKeysView()
+        case .playground: PlaygroundView()
+        case .guide: ConnectGuideView()
+        case .users: UsersView()
+        case .projects: ProjectsView()
         }
     }
 }

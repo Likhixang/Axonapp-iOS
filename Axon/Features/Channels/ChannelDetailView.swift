@@ -231,7 +231,7 @@ struct ChannelDetailView: View {
                         Text(Fmt.mask(key.key)).font(.callout.monospaced())
                         Spacer()
                         Button("恢复") { Task { await enableKey(key.key) } }
-                            .buttonStyle(.bordered)
+                            .adaptiveButtonStyle()
                             .controlSize(.small)
                     }
                     HStack(spacing: 8) {

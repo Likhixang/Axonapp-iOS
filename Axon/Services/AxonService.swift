@@ -20,20 +20,53 @@ struct AxonService: Sendable {
      disabledAPIKeys { key disabledAt errorCode reason }
     """
 
+    private static let filterCondition = """
+    type logic field operator value
+    conditions { type logic field operator value
+      conditions { type logic field operator value
+        conditions { type logic field operator value
+          conditions { type logic field operator value } } } }
+    """
+
+    private static let excludeFields = """
+    exclude { channelNamePattern channelIds channelTags }
+    """
+
+    private static let associationFields = """
+    type priority disabled
+    when { enabled condition { \(Self.filterCondition) } }
+    channelModel { channelId modelId }
+    channelRegex { channelId pattern }
+    regex { pattern \(Self.excludeFields) }
+    modelId { modelId \(Self.excludeFields) }
+    channelTagsModel { channelTags modelId }
+    channelTagsRegex { channelTags pattern }
+    """
+
     private static let modelFields = """
     id createdAt developer modelID type name icon group status remark associatedChannelCount
     modelCard {
-      toolCall temperature vision knowledge releaseDate
+      toolCall temperature vision knowledge releaseDate lastUpdated reasoningEfforts
       reasoning { supported default }
       modalities { input output }
       cost { input output cacheRead cacheWrite }
       limit { context output }
     }
+    settings {
+      disableDeveloperSettingsInheritance loadBalancerStrategy traceStickyMode
+      associations { \(Self.associationFields) }
+    }
     """
 
     private static let apiKeyFields = """
     id createdAt updatedAt name key type status scopes allowedIps
-    profiles { activeProfile profiles { name modelIDs channelTags } }
+    profiles { activeProfile profiles {
+      name templateID templateName modelIDs channelIDs channelTags channelTagsMatchMode
+      loadBalanceStrategy traceStickyMode
+      modelMappings { from to }
+      quota { requests totalTokens cost
+        period { type pastDuration { value unit } calendarDuration { unit } } }
+    } }
     project { id name }
     """
 
@@ -217,7 +250,7 @@ struct AxonService: Sendable {
             ... on Request {
               id createdAt modelID format source status stream clientIP userAgent reasoningEffort
               metricsLatencyMs metricsFirstTokenLatencyMs metricsReasoningDurationMs traceID contentSaved
-              requestHeaders requestBody responseHeaders responseBody
+              requestHeaders requestBody responseHeaders responseBody responseChunks
               channel { id name }
               apiKey { id name }
               \(Self.usageFields)
@@ -233,6 +266,20 @@ struct AxonService: Sendable {
         }
         """, variables: ["id": .string(id)])
         guard let node = result.node else { throw APIError.graphQL(["请求不存在或没有权限查看"]) }
+        return node
+    }
+
+    /// Request / response payloads of one upstream execution, loaded on demand.
+    func executionPayload(id: String) async throws -> ExecutionPayload {
+        struct R: Decodable { let node: ExecutionPayload? }
+        let result: R = try await client.graphQL("""
+        query($id: ID!) {
+          node(id: $id) {
+            ... on RequestExecution { id requestHeaders requestBody responseBody responseChunks }
+          }
+        }
+        """, variables: ["id": .string(id)])
+        guard let node = result.node else { throw APIError.graphQL(["执行记录不存在或没有权限查看"]) }
         return node
     }
 
@@ -404,6 +451,74 @@ struct AxonService: Sendable {
         let _: R = try await client.graphQL("mutation($id: ID!) { deleteModel(id: $id) }", variables: ["id": .string(id)])
     }
 
+    func model(id: String) async throws -> AIModel {
+        struct R: Decodable { let node: AIModel? }
+        let result: R = try await client.graphQL("""
+        query($id: ID!) { node(id: $id) { ... on Model { \(Self.modelFields) } } }
+        """, variables: ["id": .string(id)])
+        guard let node = result.node else { throw APIError.graphQL(["模型不存在"]) }
+        return node
+    }
+
+    func createModel(_ input: [String: JSONValue]) async throws -> AIModel {
+        struct R: Decodable { let createModel: AIModel }
+        let result: R = try await client.graphQL("""
+        mutation($input: CreateModelInput!) { createModel(input: $input) { \(Self.modelFields) } }
+        """, variables: ["input": .object(input)])
+        return result.createModel
+    }
+
+    func updateModel(id: String, _ input: [String: JSONValue]) async throws -> AIModel {
+        struct R: Decodable { let updateModel: AIModel }
+        let result: R = try await client.graphQL("""
+        mutation($id: ID!, $input: UpdateModelInput!) { updateModel(id: $id, input: $input) { \(Self.modelFields) } }
+        """, variables: ["id": .string(id), "input": .object(input)])
+        return result.updateModel
+    }
+
+    /// Channels and models that a set of associations would route to (the console's preview).
+    func modelChannelConnections(_ associations: [ModelAssociation]) async throws -> [ModelChannelConnection] {
+        struct R: Decodable { let queryModelChannelConnections: [ModelChannelConnection] }
+        let list: [JSONValue] = associations.compactMap { JSONValue(encoding: $0) }
+        let result: R = try await client.graphQL("""
+        query($associations: [ModelAssociationInput!]!) {
+          queryModelChannelConnections(associations: $associations) {
+            channel { id name type }
+            models { requestModel actualModel source }
+            priority
+          }
+        }
+        """, variables: ["associations": .array(list)])
+        return result.queryModelChannelConnections
+    }
+
+    /// Lightweight channel list for pickers (associations, API key profiles).
+    func channelOptions() async throws -> [ChannelOption] {
+        struct R: Decodable { let channels: Connection<ChannelOption> }
+        let result: R = try await client.graphQL("""
+        query {
+          channels(first: 500, where: { statusNEQ: archived }, orderBy: { field: ORDERING_WEIGHT, direction: DESC }) {
+            edges { node { id name type status tags supportedModels } }
+            pageInfo { hasNextPage endCursor }
+          }
+        }
+        """)
+        return result.channels.nodes
+    }
+
+    /// Model ids known to the server, used as suggestions in editors.
+    func modelIDSuggestions() async throws -> [String] {
+        struct R: Decodable {
+            let models: Connection<Lite>
+            struct Lite: Decodable, Sendable { let modelID: String }
+        }
+        let result: R = try await client.graphQL("""
+        query { models(first: 1000, where: { statusNEQ: archived }) { edges { node { modelID } } pageInfo { hasNextPage endCursor } } }
+        """)
+        var seen = Set<String>()
+        return result.models.nodes.map(\.modelID).filter { seen.insert($0).inserted }
+    }
+
     /// Model ids the playground can call: enabled models plus every channel's supported models.
     func playgroundModels() async throws -> [String] {
         struct R: Decodable {
@@ -450,19 +565,130 @@ struct AxonService: Sendable {
     }
 
     func createAPIKey(name: String, projectID: String) async throws -> APIKey {
+        try await createAPIKey(input: ["name": .string(name)], projectID: projectID)
+    }
+
+    func createAPIKey(input: [String: JSONValue], projectID: String) async throws -> APIKey {
         struct R: Decodable { let createAPIKey: APIKey }
+        var input = input
+        input["projectID"] = .string(projectID)
         let result: R = try await client.graphQL("""
         mutation($input: CreateAPIKeyInput!) { createAPIKey(input: $input) { \(Self.apiKeyFields) } }
-        """, variables: ["input": ["name": .string(name), "projectID": .string(projectID)]])
+        """, variables: ["input": .object(input)])
         return result.createAPIKey
     }
 
     func renameAPIKey(id: String, name: String) async throws -> APIKey {
+        try await updateAPIKey(id: id, input: ["name": .string(name)])
+    }
+
+    func updateAPIKey(id: String, input: [String: JSONValue]) async throws -> APIKey {
         struct R: Decodable { let updateAPIKey: APIKey }
         let result: R = try await client.graphQL("""
         mutation($id: ID!, $input: UpdateAPIKeyInput!) { updateAPIKey(id: $id, input: $input) { \(Self.apiKeyFields) } }
-        """, variables: ["id": .string(id), "input": ["name": .string(name)]])
+        """, variables: ["id": .string(id), "input": .object(input)])
         return result.updateAPIKey
+    }
+
+    func updateAPIKeyProfiles(id: String, input: JSONValue) async throws -> APIKey {
+        struct R: Decodable { let updateAPIKeyProfiles: APIKey }
+        let result: R = try await client.graphQL("""
+        mutation($id: ID!, $input: UpdateAPIKeyProfilesInput!) { updateAPIKeyProfiles(id: $id, input: $input) { \(Self.apiKeyFields) } }
+        """, variables: ["id": .string(id), "input": input])
+        return result.updateAPIKeyProfiles
+    }
+
+    func apiKey(id: String) async throws -> APIKey {
+        struct R: Decodable { let node: APIKey? }
+        let result: R = try await client.graphQL("""
+        query($id: ID!) { node(id: $id) { ... on APIKey { \(Self.apiKeyFields) } } }
+        """, variables: ["id": .string(id)])
+        guard let node = result.node else { throw APIError.graphQL(["API 密钥不存在"]) }
+        return node
+    }
+
+    // MARK: - API key profile templates
+
+    private static let profileFields = """
+    name templateID templateName modelIDs channelIDs channelTags channelTagsMatchMode
+    loadBalanceStrategy traceStickyMode
+    modelMappings { from to }
+    quota { requests totalTokens cost period { type pastDuration { value unit } calendarDuration { unit } } }
+    """
+
+    func apiKeyProfileTemplates() async throws -> [APIKeyProfileTemplate] {
+        struct R: Decodable { let apiKeyProfileTemplates: Connection<APIKeyProfileTemplate> }
+        let result: R = try await client.graphQL("""
+        query {
+          apiKeyProfileTemplates(first: 100) {
+            edges { node { id name description projectID linkedProfilesCount profile { \(Self.profileFields) } } }
+            pageInfo { hasNextPage endCursor }
+            totalCount
+          }
+        }
+        """)
+        return result.apiKeyProfileTemplates.nodes
+    }
+
+    /// Saves a profile as a reusable template in the key's project.
+    func createAPIKeyProfileTemplate(name: String, description: String, projectID: String,
+                                     profile: APIKeyProfile) async throws -> APIKeyProfileTemplate {
+        struct R: Decodable { let createApiKeyProfileTemplate: APIKeyProfileTemplate }
+        var profileValue = profile
+        profileValue.name = name
+        profileValue.templateID = nil
+        profileValue.templateName = nil
+        var input: [String: JSONValue] = ["name": .string(name.trimmed), "projectID": .string(projectID)]
+        if let d = description.nilIfBlank { input["description"] = .string(d) }
+        let result: R = try await client.graphQL("""
+        mutation($input: CreateAPIKeyProfileTemplateInput!, $profile: APIKeyProfileInput!) {
+          createApiKeyProfileTemplate(input: $input, profile: $profile) {
+            id name description projectID linkedProfilesCount profile { \(Self.profileFields) }
+          }
+        }
+        """, variables: ["input": .object(input), "profile": JSONValue(encoding: profileValue) ?? .null])
+        return result.createApiKeyProfileTemplate
+    }
+
+    func deleteAPIKeyProfileTemplate(id: String) async throws {
+        struct R: Decodable { struct T: Decodable { let id: String }; let deleteApiKeyProfileTemplate: T }
+        let _: R = try await client.graphQL("""
+        mutation($id: ID!) { deleteApiKeyProfileTemplate(id: $id) { id } }
+        """, variables: ["id": .string(id)])
+    }
+
+    /// Adds (or refreshes) the template as a profile of the key, server side.
+    func loadAPIKeyProfileTemplate(templateID: String, apiKeyID: String) async throws -> APIKey {
+        struct R: Decodable { let loadApiKeyProfileTemplate: APIKey }
+        let result: R = try await client.graphQL("""
+        mutation($input: LoadApiKeyProfileTemplateInput!) {
+          loadApiKeyProfileTemplate(input: $input) { \(Self.apiKeyFields) }
+        }
+        """, variables: ["input": .object(["templateID": .string(templateID), "apiKeyID": .string(apiKeyID)])])
+        return result.loadApiKeyProfileTemplate
+    }
+
+    func apiKeyQuotaUsages(id: String) async throws -> [APIKeyQuotaUsageInfo] {
+        struct R: Decodable { let apiKeyQuotaUsages: [APIKeyQuotaUsageInfo] }
+        let result: R = try await client.graphQL("""
+        query($id: ID!) {
+          apiKeyQuotaUsages(apiKeyId: $id) {
+            profileName
+            quota { requests totalTokens cost period { type pastDuration { value unit } calendarDuration { unit } } }
+            window { start end }
+            usage { requestCount totalTokens totalCost }
+          }
+        }
+        """, variables: ["id": .string(id)])
+        return result.apiKeyQuotaUsages
+    }
+
+    func projectScopes() async throws -> [ScopeInfo] {
+        struct R: Decodable { let allScopes: [ScopeInfo] }
+        let result: R = try await client.graphQL("""
+        query { allScopes(level: "project") { scope description levels } }
+        """)
+        return result.allScopes
     }
 
     func setAPIKeyStatus(id: String, status: ResourceStatus) async throws -> APIKey {

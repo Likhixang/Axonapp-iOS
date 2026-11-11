@@ -33,7 +33,7 @@ struct DashboardView: View {
             .padding(.horizontal)
             .padding(.bottom, 24)
         }
-        .background(Color(.systemGroupedBackground))
+        .background(GlassBackdrop())
         .navigationTitle("概览")
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) { ProjectPicker() }

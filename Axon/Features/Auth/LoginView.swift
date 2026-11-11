@@ -48,7 +48,7 @@ struct LoginView: View {
                 .frame(maxWidth: .infinity)
             }
             .scrollDismissesKeyboard(.interactively)
-            .background(Color(.systemGroupedBackground))
+            .background(GlassBackdrop())
         }
         .onAppear {
             if server.isEmpty { server = session.lastServer }
@@ -103,7 +103,7 @@ struct LoginView: View {
                     .onSubmit { Task { await submit() } }
             }
         }
-        .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: Theme.cardRadius, style: .continuous))
+        .adaptiveCardBackground()
         .overlay(alignment: .bottomLeading) {
             serverHint.offset(y: 22)
         }
@@ -171,8 +171,8 @@ struct LoginView: View {
             .font(.headline)
             .frame(maxWidth: .infinity, minHeight: 50)
         }
-        .buttonStyle(.borderedProminent)
-        .buttonBorderShape(.roundedRectangle(radius: 14))
+        .adaptiveButtonStyle(prominent: true)
+        .buttonBorderShape(GlassSupport.isAvailable ? .capsule : .roundedRectangle(radius: 14))
         .disabled(!canSubmit)
         .padding(.top, 8)
     }

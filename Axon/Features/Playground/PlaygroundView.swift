@@ -198,7 +198,7 @@ struct PlaygroundView: View {
                 .focused($inputFocused)
                 .padding(.horizontal, 14)
                 .padding(.vertical, 10)
-                .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+                .adaptiveCardBackground(cornerRadius: 20)
             Button {
                 if model.isSending {
                     model.stop()
