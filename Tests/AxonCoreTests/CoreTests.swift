@@ -208,3 +208,118 @@ final class StreamParserTests: XCTestCase {
         XCTAssertEqual(parts.first?["text"]?.stringValue, "hi")
     }
 }
+
+final class ResponseParserTests: XCTestCase {
+    private func json(_ text: String) throws -> JSONValue {
+        try JSONDecoder().decode(JSONValue.self, from: Data(text.utf8))
+    }
+
+    func testOpenAIChatBody() throws {
+        let body = try json(#"{"choices":[{"message":{"role":"assistant","content":"你好","reasoning_content":"想一想","tool_calls":[{"id":"c1","function":{"name":"get","arguments":"{\"a\":1}"}}]}}]}"#)
+        let r = ResponseParser.parse(body: body, chunks: nil)
+        XCTAssertEqual(r.content, "你好")
+        XCTAssertEqual(r.reasoning, "想一想")
+        XCTAssertEqual(r.toolCalls.first?.name, "get")
+        XCTAssertEqual(r.toolCalls.first?.arguments, #"{"a":1}"#)
+    }
+
+    func testAnthropicBodyAndStringEncodedBody() throws {
+        let raw = #"{"role":"assistant","content":[{"type":"thinking","thinking":"hm"},{"type":"text","text":"Hi"},{"type":"tool_use","id":"t","name":"calc","input":{"x":2}}]}"#
+        let r = ResponseParser.parse(body: .string(raw), chunks: nil)
+        XCTAssertEqual(r.content, "Hi")
+        XCTAssertEqual(r.reasoning, "hm")
+        XCTAssertEqual(r.toolCalls.first?.arguments, #"{"x":2}"#)
+    }
+
+    func testResponsesAPIAndGeminiBodies() throws {
+        let responses = try json(#"{"output":[{"type":"reasoning","summary":[{"type":"summary_text","text":"r"}]},{"type":"message","content":[{"type":"output_text","text":"ok"}]}]}"#)
+        XCTAssertEqual(ResponseParser.parse(body: responses, chunks: nil).content, "ok")
+        let gemini = try json(#"{"candidates":[{"content":{"parts":[{"text":"t","thought":true},{"text":"answer"}]}}]}"#)
+        let g = ResponseParser.parse(body: gemini, chunks: nil)
+        XCTAssertEqual(g.content, "answer")
+        XCTAssertEqual(g.reasoning, "t")
+    }
+
+    func testRebuildsOpenAIStreamFromChunks() throws {
+        let chunks = try [
+            json(#"{"choices":[{"delta":{"role":"assistant","content":"Hel"}}]}"#),
+            json(#"{"choices":[{"delta":{"content":"lo"}}]}"#),
+            json(#"{"choices":[{"delta":{"tool_calls":[{"index":0,"id":"x","function":{"name":"f","arguments":"{\"q\""}}]}}]}"#),
+            json(#"{"choices":[{"delta":{"tool_calls":[{"index":0,"function":{"arguments":":1}"}}]}}]}"#),
+        ]
+        let r = ResponseParser.parse(body: nil, chunks: chunks)
+        XCTAssertEqual(r.content, "Hello")
+        XCTAssertEqual(r.toolCalls.count, 1)
+        XCTAssertEqual(r.toolCalls.first?.arguments, #"{"q":1}"#)
+    }
+
+    func testRebuildsAnthropicStreamWithEventWrapper() throws {
+        let chunks = try [
+            json(#"{"event":"message_start","data":"{\"type\":\"message_start\"}"}"#),
+            json(#"{"event":"content_block_start","data":{"type":"content_block_start","index":0,"content_block":{"type":"thinking"}}}"#),
+            json(#"{"data":{"type":"content_block_delta","index":0,"delta":{"type":"thinking_delta","thinking":"a"}}}"#),
+            json(#"{"data":{"type":"content_block_start","index":1,"content_block":{"type":"text"}}}"#),
+            json(#"{"data":{"type":"content_block_delta","index":1,"delta":{"type":"text_delta","text":"B"}}}"#),
+            json(#"{"data":{"type":"content_block_delta","index":1,"delta":{"type":"text_delta","text":"C"}}}"#),
+        ]
+        let r = ResponseParser.parse(body: .null, chunks: chunks)
+        XCTAssertEqual(r.reasoning, "a")
+        XCTAssertEqual(r.content, "BC")
+    }
+
+    func testResponsesStreamAndEmptyBodyFallsBackToChunks() throws {
+        let chunks = try [
+            json(#"{"type":"response.output_text.delta","delta":"x"}"#),
+            json(#"{"type":"response.output_text.delta","delta":"y"}"#),
+        ]
+        XCTAssertEqual(ResponseParser.parse(body: .object([:]), chunks: chunks).content, "xy")
+        XCTAssertTrue(ResponseParser.parse(body: nil, chunks: []).isEmpty)
+    }
+
+    func testRequestPreviewMessages() throws {
+        let body = try json(#"{"system":"be nice","messages":[{"role":"user","content":[{"type":"text","text":"hi"},{"type":"image_url","image_url":{}}]},{"role":"assistant","content":"yo"}]}"#)
+        let messages = try XCTUnwrap(RequestPreview.messages(in: body))
+        XCTAssertEqual(messages.map(\.role), ["system", "user", "assistant"])
+        XCTAssertEqual(messages[1].text, "hi\n〔图片〕")
+    }
+}
+
+final class EditingTests: XCTestCase {
+    func testTabLayoutResolvesAndFallsBack() {
+        let all = AppDestination.allCases
+        XCTAssertEqual(TabLayout.resolve(stored: "", available: all), [.dashboard, .requests, .models, .apiKeys])
+        XCTAssertEqual(TabLayout.resolve(stored: "playground,models,bogus,models", available: all), [.playground, .models])
+        let limited = AppDestination.available(isAdmin: false, isOwner: false)
+        XCTAssertFalse(limited.contains(.channels))
+        XCTAssertEqual(TabLayout.resolve(stored: "channels", available: limited), TabLayout.defaults(available: limited))
+        XCTAssertEqual(TabLayout.resolve(stored: "a,b,c,d,e,f", available: all), TabLayout.defaults(available: all))
+        XCTAssertEqual(TabLayout.resolve(stored: "dashboard,requests,channels,models,apiKeys", available: all).count, TabLayout.maxPinned)
+    }
+
+    func testModelDraftBuildsInputs() throws {
+        var draft = ModelDraft()
+        XCTAssertNotNil(draft.validationError)
+        draft.developer = "openai"
+        draft.modelID = "gpt-x"
+        draft.name = "GPT X"
+        draft.contextLimit = "128k"
+        draft.costInput = "abc"
+        XCTAssertEqual(draft.validationError, "输入价格不是有效数字")
+        draft.costInput = "2.5"
+        XCTAssertNil(draft.validationError)
+        let input = draft.createInput
+        XCTAssertEqual(input["modelID"], .string("gpt-x"))
+        XCTAssertEqual(input["modelCard"]?["limit"]?["context"], .number(128_000))
+        XCTAssertEqual(input["modelCard"]?["cost"]?["input"], .number(2.5))
+    }
+
+    func testProfilesValidation() {
+        let a = APIKeyProfile(name: "Default")
+        XCTAssertEqual(ProfilesEditor.validationError(active: "", profiles: []), "至少需要一个配置")
+        XCTAssertEqual(ProfilesEditor.validationError(active: "x", profiles: [a]), "请选择一个生效的配置")
+        XCTAssertEqual(ProfilesEditor.validationError(active: "Default", profiles: [a, APIKeyProfile(name: "default")]), "配置名称“default”重复")
+        XCTAssertNil(ProfilesEditor.validationError(active: "Default", profiles: [a]))
+        let input = ProfilesEditor.input(active: "Default", profiles: [a])
+        XCTAssertEqual(input["activeProfile"], .string("Default"))
+    }
+}

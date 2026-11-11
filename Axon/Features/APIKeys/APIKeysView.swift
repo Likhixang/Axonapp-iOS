@@ -12,12 +12,18 @@ struct APIKeysView: View {
     @State private var pendingRotate: APIKey?
     @State private var renaming: APIKey?
     @State private var renameText = ""
+    @State private var editingProfiles: APIKey?
+    @State private var editingKey: APIKey?
 
     var body: some View {
         List {
             ForEach(loader.items) { key in
-                APIKeyRow(apiKey: key, isRevealed: revealed.contains(key.id)) {
-                    if revealed.contains(key.id) { revealed.remove(key.id) } else { revealed.insert(key.id) }
+                NavigationLink {
+                    APIKeyDetailView(apiKey: key) { loader.replace($0) }
+                } label: {
+                    APIKeyRow(apiKey: key, isRevealed: revealed.contains(key.id)) {
+                        if revealed.contains(key.id) { revealed.remove(key.id) } else { revealed.insert(key.id) }
+                    }
                 }
                 .swipeActions(edge: .trailing, allowsFullSwipe: false) {
                     if key.keyStatus != .archived {
@@ -34,7 +40,9 @@ struct APIKeysView: View {
                 }
                 .contextMenu {
                     Button("拷贝密钥", systemImage: "doc.on.doc") { copy(key) }
-                    Button("重命名", systemImage: "pencil") { renameText = key.name; renaming = key }
+                    Button("编辑配置文件", systemImage: "slider.horizontal.3") { editingProfiles = key }
+                    Button("编辑密钥", systemImage: "pencil") { editingKey = key }
+                    Button("重命名", systemImage: "character.cursor.ibeam") { renameText = key.name; renaming = key }
                     Button("轮换密钥", systemImage: "arrow.triangle.2.circlepath") { pendingRotate = key }
                     Divider()
                     Button(key.keyStatus == .enabled ? "停用" : "启用",
@@ -71,9 +79,18 @@ struct APIKeysView: View {
             }
         }
         .sheet(isPresented: $showCreate) {
-            CreateAPIKeySheet { created in
+            APIKeyFormSheet(existing: nil) { created in
                 loader.prepend(created)
                 revealed.insert(created.id)
+            }
+        }
+        .sheet(item: $editingKey) { key in
+            APIKeyFormSheet(existing: key) { loader.replace($0) }
+        }
+        .sheet(item: $editingProfiles) { key in
+            APIKeyProfilesEditorView(apiKey: key) { saved in
+                loader.replace(saved)
+                toast = Toast(message: "配置文件已保存")
             }
         }
         .confirmationDialog("轮换密钥？", isPresented: Binding(get: { pendingRotate != nil }, set: { if !$0 { pendingRotate = nil } }),
@@ -182,80 +199,5 @@ struct APIKeyRow: View {
             .lineLimit(1)
         }
         .padding(.vertical, 2)
-    }
-}
-
-struct CreateAPIKeySheet: View {
-    @Environment(SessionStore.self) private var session
-    @Environment(\.dismiss) private var dismiss
-    var onCreated: (APIKey) -> Void
-
-    @State private var name = ""
-    @State private var projectID = ""
-    @State private var isSaving = false
-    @State private var errorMessage: String?
-    @State private var created: APIKey?
-
-    var body: some View {
-        NavigationStack {
-            Form {
-                if let created {
-                    Section {
-                        VStack(alignment: .leading, spacing: 10) {
-                            Label("密钥已创建", systemImage: "checkmark.seal.fill").foregroundStyle(Theme.success)
-                            Text(created.key).font(.callout.monospaced()).textSelection(.enabled)
-                            Button("拷贝密钥", systemImage: "doc.on.doc") { Clipboard.copy(created.key) }
-                                .buttonStyle(.borderedProminent)
-                        }
-                        .padding(.vertical, 4)
-                    } footer: {
-                        Text("在客户端里把 Base URL 设为 \(session.serverURL?.absoluteString ?? "服务器地址")/v1，并使用这个密钥。")
-                    }
-                } else {
-                    Section {
-                        TextField("名称，例如 Cursor、开发环境", text: $name)
-                        if session.projects.count > 1 {
-                            Picker("项目", selection: $projectID) {
-                                ForEach(session.projects) { Text($0.name).tag($0.id) }
-                            }
-                        }
-                    }
-                    if let errorMessage {
-                        Section { Text(errorMessage).font(.footnote).foregroundStyle(Theme.danger) }
-                    }
-                }
-            }
-            .navigationTitle("新建 API 密钥")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button(created == nil ? "取消" : "完成") { dismiss() }
-                }
-                if created == nil {
-                    ToolbarItem(placement: .confirmationAction) {
-                        if isSaving { ProgressView() } else {
-                            Button("创建") { Task { await create() } }
-                                .disabled(name.trimmed.isEmpty || projectID.isEmpty)
-                        }
-                    }
-                }
-            }
-            .onAppear { if projectID.isEmpty { projectID = session.selectedProjectID ?? session.projects.first?.id ?? "" } }
-        }
-    }
-
-    private func create() async {
-        guard let service = session.service else { return }
-        isSaving = true
-        errorMessage = nil
-        defer { isSaving = false }
-        do {
-            let key = try await service.createAPIKey(name: name.trimmed, projectID: projectID)
-            created = key
-            onCreated(key)
-            UINotificationFeedbackGenerator().notificationOccurred(.success)
-        } catch {
-            errorMessage = error.localizedDescription
-        }
     }
 }

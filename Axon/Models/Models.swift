@@ -119,9 +119,9 @@ struct AxonUser: Decodable, Identifiable, Hashable, Sendable {
 
 // MARK: - Channels
 
-struct ModelMapping: Decodable, Hashable, Sendable {
-    let from: String
-    let to: String
+struct ModelMapping: Codable, Hashable, Sendable {
+    var from: String
+    var to: String
 }
 
 struct ChannelSettings: Decodable, Hashable, Sendable {
@@ -209,7 +209,9 @@ struct ModelCard: Decodable, Hashable, Sendable {
     let vision: Bool?
     let knowledge: String?
     let releaseDate: String?
+    let lastUpdated: String?
     let reasoning: ModelReasoning?
+    let reasoningEfforts: [String]?
     let modalities: ModelModalities?
     let cost: ModelCost?
     let limit: ModelLimit?
@@ -228,22 +230,12 @@ struct AIModel: Decodable, Identifiable, Hashable, Sendable {
     let remark: String?
     let associatedChannelCount: Int?
     let modelCard: ModelCard?
+    let settings: ModelSettings?
 
     var modelStatus: ResourceStatus { ResourceStatus(rawValue: status) ?? .disabled }
 }
 
 // MARK: - API keys
-
-struct APIKeyProfileLite: Decodable, Hashable, Sendable {
-    let name: String
-    let modelIDs: [String]?
-    let channelTags: [String]?
-}
-
-struct APIKeyProfiles: Decodable, Hashable, Sendable {
-    let activeProfile: String
-    let profiles: [APIKeyProfileLite]?
-}
 
 struct APIKey: Decodable, Identifiable, Hashable, Sendable {
     let id: String
@@ -306,6 +298,15 @@ struct RequestExecution: Decodable, Identifiable, Hashable, Sendable {
     var requestStatus: RequestStatus { RequestStatus(rawValue: status) ?? .pending }
 }
 
+/// One upstream attempt with the payloads AxonHub sent to and got back from the channel.
+struct ExecutionPayload: Decodable, Hashable, Sendable {
+    let id: String
+    let requestHeaders: JSONValue?
+    let requestBody: JSONValue?
+    let responseBody: JSONValue?
+    let responseChunks: [JSONValue]?
+}
+
 struct ExecutionList: Decodable, Hashable, Sendable {
     struct Edge: Decodable, Hashable, Sendable { let node: RequestExecution? }
     let edges: [Edge]?
@@ -354,6 +355,7 @@ struct RequestDetail: Decodable, Identifiable, Hashable, Sendable {
     let requestBody: JSONValue?
     let responseHeaders: JSONValue?
     let responseBody: JSONValue?
+    let responseChunks: [JSONValue]?
     let channel: NamedRef?
     let apiKey: NamedRef?
     let usageLogs: UsageLogList?

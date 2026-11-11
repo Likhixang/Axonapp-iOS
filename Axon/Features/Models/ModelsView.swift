@@ -7,14 +7,29 @@ struct ModelsView: View {
     @State private var query = ""
     @State private var toast: Toast?
     @State private var pendingDelete: AIModel?
+    @State private var showCreate = false
+    @State private var editing: AIModel?
 
     var body: some View {
         List {
             ForEach(loader.items) { model in
                 NavigationLink {
-                    ModelDetailView(model: model)
+                    ModelDetailView(model: model) { loader.replace($0) }
                 } label: {
                     ModelRow(model: model)
+                }
+                .swipeActions(edge: .leading) {
+                    Button("编辑", systemImage: "pencil") { editing = model }.tint(Theme.accent)
+                }
+                .contextMenu {
+                    Button("编辑", systemImage: "pencil") { editing = model }
+                    Button(model.modelStatus == .enabled ? "停用" : "启用",
+                           systemImage: model.modelStatus == .enabled ? "pause.circle" : "play.circle") {
+                        Task { await toggle(model) }
+                    }
+                    Button("拷贝模型 ID", systemImage: "doc.on.doc") { Clipboard.copy(model.modelID) }
+                    Divider()
+                    Button("删除", systemImage: "trash", role: .destructive) { pendingDelete = model }
                 }
                 .swipeActions(edge: .trailing, allowsFullSwipe: false) {
                     Button("删除", systemImage: "trash", role: .destructive) { pendingDelete = model }
@@ -31,14 +46,14 @@ struct ModelsView: View {
         .listStyle(.insetGrouped)
         .overlay {
             ListStateOverlay(loader: loader, emptyTitle: "没有模型", emptyImage: "cpu",
-                             emptyMessage: "模型在网页端或通过渠道同步后会出现在这里")
+                             emptyMessage: "点右上角的 + 新建模型，或在渠道里同步模型")
         }
         .navigationTitle("模型")
         .searchable(text: $query, prompt: "搜索模型 ID、名称或厂商")
         .onSubmit(of: .search) { filter.search = query }
         .onChange(of: query) { _, value in if value.isEmpty { filter.search = "" } }
         .toolbar {
-            ToolbarItem(placement: .topBarTrailing) {
+            ToolbarItemGroup(placement: .topBarTrailing) {
                 Menu {
                     Picker("状态", selection: $filter.status) {
                         Text("全部（不含归档）").tag(ResourceStatus?.none)
@@ -47,6 +62,19 @@ struct ModelsView: View {
                 } label: {
                     Image(systemName: filter.status == nil ? "line.3.horizontal.decrease.circle" : "line.3.horizontal.decrease.circle.fill")
                 }
+                Button { showCreate = true } label: { Image(systemName: "plus") }
+            }
+        }
+        .sheet(isPresented: $showCreate) {
+            ModelFormView { created in
+                loader.prepend(created)
+                toast = Toast(message: "已创建 \(created.modelID)")
+            }
+        }
+        .sheet(item: $editing) { model in
+            ModelFormView(model: model) { saved in
+                loader.replace(saved)
+                toast = Toast(message: "已保存")
             }
         }
         .confirmationDialog("删除模型？", isPresented: Binding(get: { pendingDelete != nil }, set: { if !$0 { pendingDelete = nil } }),
@@ -132,7 +160,16 @@ struct ModelRow: View {
 }
 
 struct ModelDetailView: View {
-    let model: AIModel
+    @Environment(SessionStore.self) private var session
+    @State private var model: AIModel
+    @State private var showEdit = false
+    @State private var channels: [ChannelOption] = []
+    var onChange: ((AIModel) -> Void)?
+
+    init(model: AIModel, onChange: ((AIModel) -> Void)? = nil) {
+        _model = State(initialValue: model)
+        self.onChange = onChange
+    }
 
     var body: some View {
         List {
@@ -154,6 +191,7 @@ struct ModelDetailView: View {
                 if let remark = model.remark?.nilIfBlank { KeyValueRow(key: "备注", value: remark) }
                 KeyValueRow(key: "创建时间", value: Fmt.dateTime(model.createdAt))
             }
+            routingSections
             if let card = model.modelCard {
                 Section("能力") {
                     capability("工具调用", card.toolCall)
@@ -192,6 +230,54 @@ struct ModelDetailView: View {
         .listStyle(.insetGrouped)
         .navigationTitle(model.modelID)
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                Button("编辑") { showEdit = true }
+            }
+        }
+        .sheet(isPresented: $showEdit) {
+            ModelFormView(model: model) { saved in
+                model = saved
+                onChange?(saved)
+            }
+        }
+        .refreshable { await refresh() }
+        .task { await loadChannels() }
+    }
+
+    @ViewBuilder
+    private var routingSections: some View {
+        let settings = model.settings ?? .empty
+        Section {
+            KeyValueRow(key: "负载均衡", value: LoadBalancerStrategy(rawValue: LoadBalancerStrategy.normalized(settings.loadBalancerStrategy))?.label ?? "默认")
+            KeyValueRow(key: "会话粘滞", value: TraceStickyMode(rawValue: TraceStickyMode.normalized(settings.traceStickyMode))?.label ?? "默认")
+            if settings.disableDeveloperSettingsInheritance == true {
+                KeyValueRow(key: "继承厂商设置", value: "否")
+            }
+            ForEach(settings.associations) { association in
+                AssociationRow(association: association) { id in channels.first { $0.numericID == id }?.name }
+            }
+            if !settings.associations.isEmpty {
+                NavigationLink {
+                    ConnectionPreviewView(associations: settings.associations)
+                } label: {
+                    Label("预览会命中的渠道", systemImage: "point.3.connected.trianglepath.dotted")
+                }
+            }
+        } header: {
+            Text("路由与渠道关联 (\(settings.associations.count))")
+        }
+    }
+
+    private func refresh() async {
+        guard let service = session.service, let fresh = try? await service.model(id: model.id) else { return }
+        model = fresh
+        onChange?(fresh)
+    }
+
+    private func loadChannels() async {
+        guard channels.isEmpty, let service = session.service else { return }
+        channels = (try? await service.channelOptions()) ?? []
     }
 
     private func capability(_ title: String, _ value: Bool?) -> some View {

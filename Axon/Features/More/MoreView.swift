@@ -2,7 +2,13 @@ import SwiftUI
 
 struct MoreView: View {
     @Environment(SessionStore.self) private var session
+    @AppStorage(TabLayout.storageKey) private var storedPinned = ""
     @State private var confirmSignOut = false
+
+    private var unpinned: [AppDestination] {
+        let available = AppDestination.available(isAdmin: session.canManageSystem, isOwner: session.isOwner)
+        return TabLayout.unpinned(TabLayout.resolve(stored: storedPinned, available: available), available: available)
+    }
 
     var body: some View {
         List {
@@ -27,21 +33,22 @@ struct MoreView: View {
                 }
             }
 
-            Section("网关") {
-                if session.canManageSystem {
-                    NavigationLink { ModelsView() } label: { Label("模型", systemImage: "cpu") }
-                    NavigationLink { APIKeysView() } label: { Label("API 密钥", systemImage: "key") }
-                } else {
-                    NavigationLink { ModelsView() } label: { Label("模型", systemImage: "cpu") }
+            if !unpinned.isEmpty {
+                Section("页面") {
+                    ForEach(unpinned) { destination in
+                        NavigationLink { destination.rootView } label: {
+                            Label(destination.title, systemImage: destination.systemImage)
+                        }
+                    }
                 }
-                NavigationLink { ConnectGuideView() } label: { Label("接入指南", systemImage: "link") }
             }
 
-            if session.isOwner {
-                Section("管理") {
-                    NavigationLink { UsersView() } label: { Label("用户", systemImage: "person.2") }
-                    NavigationLink { ProjectsView() } label: { Label("项目", systemImage: "folder") }
+            Section {
+                NavigationLink { TabBarEditorView() } label: {
+                    Label("自定义底栏", systemImage: "dock.rectangle")
                 }
+            } footer: {
+                Text("底栏放哪些页面、什么顺序都由你定，没放上去的页面会出现在这里。")
             }
 
             Section("服务器") {

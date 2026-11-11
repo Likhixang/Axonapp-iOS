@@ -74,9 +74,15 @@ enum Fmt {
         return formatter.string(from: NSNumber(value: value)) ?? String(value)
     }
 
-    private static func trim(_ value: Double) -> String {
+    static func trim(_ value: Double) -> String {
         let text = value >= 100 ? String(format: "%.0f", value) : String(format: "%.1f", value)
         return text.hasSuffix(".0") ? String(text.dropLast(2)) : text
+    }
+
+    static func bytes(_ count: Int) -> String {
+        if count < 1024 { return "\(count) B" }
+        if count < 1024 * 1024 { return trim(Double(count) / 1024) + " KB" }
+        return trim(Double(count) / 1024 / 1024) + " MB"
     }
 
     static func cost(_ value: Double?) -> String {
