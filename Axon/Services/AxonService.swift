@@ -15,7 +15,11 @@ struct AxonService: Sendable {
     """
 
     private static let channelDetailFields = channelFields + """
-     settings { extraModelPrefix modelMappings { from to } }
+     settings { extraModelPrefix modelMappings { from to }
+       proxy { type url username password disableConnectionReuse }
+       apiKeyStrategy apiKeyRoundRobinSwitchAfter quotaRoutingMode }
+     policies { stream apiKeyAutoDisableMode
+       apiKeyAutoDisableRules { statusCodes keywordPatterns times action disableDurationMinutes disableUntilCron disableUntilTimezone } }
      allModelEntries { requestModel actualModel source }
      disabledAPIKeys { key disabledAt errorCode reason }
     """
@@ -367,6 +371,30 @@ struct AxonService: Sendable {
         return result.updateChannel
     }
 
+    /// Partial settings patch (`updateChannelSettings`): absent fields keep their stored values.
+    @discardableResult
+    func updateChannelSettings(id: String, _ patch: [String: JSONValue]) async throws -> Channel {
+        struct R: Decodable { let updateChannelSettings: Channel }
+        let result: R = try await client.graphQL("""
+        mutation($id: ID!, $input: UpdateChannelSettingsInput!) { updateChannelSettings(id: $id, input: $input) { \(Self.channelFields) } }
+        """, variables: ["id": .string(id), "input": .object(patch)])
+        return result.updateChannelSettings
+    }
+
+    /// Saved proxies offered by the channel proxy select (`proxyPresets`).
+    func proxyPresets() async throws -> [ProxyPreset] {
+        struct R: Decodable { let proxyPresets: [ProxyPreset] }
+        let result: R = try await client.graphQL("query { proxyPresets { name url username password } }")
+        return result.proxyPresets
+    }
+
+    /// The system-wide quota routing mode a channel's INHERIT falls back to.
+    func quotaRoutingDefaultMode() async throws -> String {
+        struct R: Decodable { struct S: Decodable { let defaultMode: String }; let quotaRoutingSettings: S }
+        let result: R = try await client.graphQL("query { quotaRoutingSettings { defaultMode } }")
+        return result.quotaRoutingSettings.defaultMode
+    }
+
     func setChannelStatus(id: String, status: ResourceStatus) async throws {
         struct R: Decodable { struct C: Decodable { let id: String }; let updateChannelStatus: C }
         let _: R = try await client.graphQL("""
@@ -522,12 +550,50 @@ struct AxonService: Sendable {
         let result: R = try await client.graphQL("""
         query {
           channels(first: 500, where: { statusNEQ: archived }, orderBy: { field: ORDERING_WEIGHT, direction: DESC }) {
-            edges { node { id name type status tags supportedModels } }
+            edges { node { id name type status tags supportedModels allModelEntries { requestModel actualModel source } } }
             pageInfo { hasNextPage endCursor }
           }
         }
         """)
         return result.channels.nodes
+    }
+
+    /// Every tag used by a channel (`allChannelTags`), for the channel tag pickers.
+    func allChannelTags() async throws -> [String] {
+        struct R: Decodable { let allChannelTags: [String] }
+        let result: R = try await client.graphQL("query { allChannelTags }")
+        return result.allChannelTags
+    }
+
+    /// Model ids routable through channels (`queryModels`), as the web console's model selects load them.
+    func queryModels(statusIn: [String] = ["enabled"], includeMapping: Bool = false, includePrefix: Bool = false,
+                     includeAllChannelModels: Bool = false) async throws -> [String] {
+        struct R: Decodable {
+            let queryModels: [Item]
+            struct Item: Decodable, Sendable { let id: String; let status: String }
+        }
+        let input: JSONValue = .object([
+            "statusIn": .strings(statusIn),
+            "includeMapping": .bool(includeMapping),
+            "includePrefix": .bool(includePrefix),
+            "includeAllChannelModels": .bool(includeAllChannelModels),
+        ])
+        let result: R = try await client.graphQL("""
+        query QueryModels($input: QueryModelsInput!) { queryModels(input: $input) { id status } }
+        """, variables: ["input": input])
+        return OptionSearch.merge(result.queryModels.map(\.id))
+    }
+
+    /// The developer and model catalog behind the model editor's selects (`providersCatalog`).
+    func providersCatalog() async throws -> ProvidersCatalog {
+        struct R: Decodable {
+            let providersCatalog: Info
+            struct Info: Decodable, Sendable { let data: JSONValue; let source: String? }
+        }
+        let result: R = try await client.graphQL("""
+        query ProvidersCatalog($filtered: Boolean) { providersCatalog(filtered: $filtered) { data source fetchedAt filtered } }
+        """, variables: ["filtered": .bool(true)])
+        return ProvidersCatalog.decode(result.providersCatalog.data, source: result.providersCatalog.source)
     }
 
     /// Model ids known to the server, used as suggestions in editors.
@@ -770,7 +836,8 @@ struct AxonService: Sendable {
         let result: R = try await client.graphQL("""
         query($first: Int, $after: Cursor, $orderBy: ProjectOrder) {
           projects(first: $first, after: $after, orderBy: $orderBy) {
-            edges { node { id name description status createdAt } }
+            edges { node { id name description status createdAt
+              profiles { activeProfile profiles { name channelIDs channelTags channelTagsMatchMode } } } }
             pageInfo { hasNextPage endCursor }
             totalCount
           }
@@ -793,4 +860,85 @@ struct AxonService: Sendable {
         mutation($id: ID!, $status: ProjectStatus!) { updateProjectStatus(id: $id, status: $status) { id } }
         """, variables: ["id": .string(id), "status": .string(active ? "active" : "archived")])
     }
+
+    func updateProjectProfiles(id: String, _ draft: ProfilesDraft) async throws -> Project {
+        struct R: Decodable { let updateProjectProfiles: Project }
+        let result: R = try await client.graphQL("""
+        mutation($id: ID!, $input: UpdateProjectProfilesInput!) {
+          updateProjectProfiles(id: $id, input: $input) { id name description status createdAt
+            profiles { activeProfile profiles { name channelIDs channelTags channelTagsMatchMode } } }
+        }
+        """, variables: ["id": .string(id), "input": .object(draft.input)])
+        return result.updateProjectProfiles
+    }
+
+    // MARK: - Roles and user permissions
+
+    /// System-level roles, as the user dialog loads them (`roles(first: 100, where: { level: system })`).
+    func systemRoles() async throws -> [RoleItem] {
+        struct R: Decodable { let roles: Connection<RoleItem> }
+        let result: R = try await client.graphQL("""
+        query {
+          roles(first: 100, where: { level: system }, orderBy: { field: CREATED_AT, direction: DESC }) {
+            edges { node { id name level scopes createdAt } }
+            pageInfo { hasNextPage endCursor }
+          }
+        }
+        """)
+        return result.roles.nodes
+    }
+
+    func systemScopes() async throws -> [ScopeInfo] {
+        struct R: Decodable { let allScopes: [ScopeInfo] }
+        let result: R = try await client.graphQL("""
+        query { allScopes(level: "system") { scope description levels } }
+        """)
+        return result.allScopes
+    }
+
+    func userDetail(id: String) async throws -> UserDetail {
+        struct R: Decodable { let node: UserDetail }
+        let result: R = try await client.graphQL("""
+        query($id: ID!) { node(id: $id) { ... on User { \(Self.userDetailFields) } } }
+        """, variables: ["id": .string(id)])
+        return result.node
+    }
+
+    func createUser(_ input: [String: JSONValue]) async throws {
+        struct R: Decodable { struct U: Decodable { let id: String }; let createUser: U }
+        let _: R = try await client.graphQL("""
+        mutation($input: CreateUserInput!) { createUser(input: $input) { id } }
+        """, variables: ["input": .object(input)])
+    }
+
+    func updateUser(id: String, _ input: [String: JSONValue]) async throws {
+        struct R: Decodable { struct U: Decodable { let id: String }; let updateUser: U }
+        let _: R = try await client.graphQL("""
+        mutation($id: ID!, $input: UpdateUserInput!) { updateUser(id: $id, input: $input) { id } }
+        """, variables: ["id": .string(id), "input": .object(input)])
+    }
+
+    func createRole(_ input: [String: JSONValue]) async throws -> RoleItem {
+        struct R: Decodable { let createRole: RoleItem }
+        let result: R = try await client.graphQL("""
+        mutation($input: CreateRoleInput!) { createRole(input: $input) { id name level scopes createdAt } }
+        """, variables: ["input": .object(input)])
+        return result.createRole
+    }
+
+    func updateRole(id: String, _ input: [String: JSONValue]) async throws -> RoleItem {
+        struct R: Decodable { let updateRole: RoleItem }
+        let result: R = try await client.graphQL("""
+        mutation($id: ID!, $input: UpdateRoleInput!) { updateRole(id: $id, input: $input) { id name level scopes createdAt } }
+        """, variables: ["id": .string(id), "input": .object(input)])
+        return result.updateRole
+    }
+
+    func deleteRole(id: String) async throws {
+        struct R: Decodable { let deleteRole: Bool }
+        let _: R = try await client.graphQL("mutation($id: ID!) { deleteRole(id: $id) }", variables: ["id": .string(id)])
+    }
+
+    static let userDetailFields = "id email firstName lastName isOwner scopes roles { edges { node { id name level scopes } } }"
+
 }

@@ -503,10 +503,13 @@ struct APIKeyProfilesEditorView: View {
         profiles = apiKey.profiles?.profiles ?? []
         active = apiKey.profiles?.activeProfile ?? profiles.first?.name ?? ""
         async let c = try? service.channelOptions()
+        // Same list as the web console: enabled models, with mappings and channel prefixes.
+        async let q = try? service.queryModels(statusIn: ["enabled"], includeMapping: true, includePrefix: true)
         async let m = try? service.modelIDSuggestions()
         async let t = try? service.apiKeyProfileTemplates()
         channels = await c ?? []
-        modelIDs = await m ?? []
+        let queried = await q ?? []
+        modelIDs = queried.isEmpty ? (await m ?? []) : queried
         templates = await t ?? []
     }
 
@@ -598,14 +601,17 @@ struct ProfileEditorView: View {
 
             Section {
                 ForEach(Array((profile.modelMappings ?? []).enumerated()), id: \.offset) { index, _ in
-                    HStack {
-                        TextField("请求模型", text: mappingBinding(index, \.from))
-                        Image(systemName: "arrow.right").foregroundStyle(.secondary).font(.caption)
-                        TextField("实际模型", text: mappingBinding(index, \.to))
+                    VStack(spacing: 0) {
+                        OptionPickerRow(title: "请求模型", value: mappingBinding(index, \.from).wrappedValue,
+                                        placeholder: "选择或输入", monospaced: true, options: modelIDs) {
+                            mappingBinding(index, \.from).wrappedValue = $0
+                        }
+                        Divider().padding(.vertical, 6)
+                        OptionPickerRow(title: "实际模型", value: mappingBinding(index, \.to).wrappedValue,
+                                        placeholder: "选择或输入", monospaced: true, options: modelIDs) {
+                            mappingBinding(index, \.to).wrappedValue = $0
+                        }
                     }
-                    .font(.callout.monospaced())
-                    .textInputAutocapitalization(.never)
-                    .autocorrectionDisabled()
                 }
                 .onDelete { offsets in
                     var list = profile.modelMappings ?? []

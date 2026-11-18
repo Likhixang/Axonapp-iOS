@@ -2,7 +2,7 @@ import Foundation
 
 /// Every page that can sit in the tab bar or in “更多”.
 enum AppDestination: String, CaseIterable, Identifiable, Sendable {
-    case dashboard, requests, channels, models, apiKeys, playground, guide, users, projects
+    case dashboard, requests, channels, models, apiKeys, playground, guide, users, roles, projects
 
     var id: String { rawValue }
 
@@ -16,6 +16,7 @@ enum AppDestination: String, CaseIterable, Identifiable, Sendable {
         case .playground: return "对话测试"
         case .guide: return "接入指南"
         case .users: return "用户"
+        case .roles: return "角色"
         case .projects: return "项目"
         }
     }
@@ -41,6 +42,7 @@ enum AppDestination: String, CaseIterable, Identifiable, Sendable {
         case .playground: return "bubble.left.and.text.bubble.right"
         case .guide: return "link"
         case .users: return "person.2"
+        case .roles: return "person.badge.shield.checkmark"
         case .projects: return "folder"
         }
     }
@@ -50,7 +52,7 @@ enum AppDestination: String, CaseIterable, Identifiable, Sendable {
     var requirement: Requirement {
         switch self {
         case .channels: return .admin
-        case .users, .projects: return .owner
+        case .users, .roles, .projects: return .owner
         default: return .any
         }
     }

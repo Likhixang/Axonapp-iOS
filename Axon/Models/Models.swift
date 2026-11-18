@@ -96,6 +96,7 @@ struct Project: Decodable, Identifiable, Hashable, Sendable {
     let description: String?
     let status: String?
     let createdAt: Date?
+    var profiles: ProjectProfiles? = nil
 
     var isActive: Bool { (status ?? "active") == "active" }
 }
@@ -124,9 +125,21 @@ struct ModelMapping: Codable, Hashable, Sendable {
     var to: String
 }
 
+struct ProxyConfig: Codable, Hashable, Sendable {
+    var type: String?
+    var url: String?
+    var username: String?
+    var password: String?
+    var disableConnectionReuse: Bool?
+}
+
 struct ChannelSettings: Decodable, Hashable, Sendable {
     let extraModelPrefix: String?
     let modelMappings: [ModelMapping]?
+    var proxy: ProxyConfig? = nil
+    var apiKeyStrategy: String? = nil
+    var apiKeyRoundRobinSwitchAfter: Int? = nil
+    var quotaRoutingMode: String? = nil
 }
 
 struct DisabledAPIKey: Decodable, Hashable, Sendable {
@@ -162,6 +175,8 @@ struct Channel: Decodable, Identifiable, Hashable, Sendable {
     let settings: ChannelSettings?
     let allModelEntries: [ChannelModelEntry]?
     let disabledAPIKeys: [DisabledAPIKey]?
+    /// Raw `policies` object, kept whole so an edit can change `stream` without dropping the auto-disable rules.
+    var policies: JSONValue? = nil
 
     var channelStatus: ResourceStatus { ResourceStatus(rawValue: status) ?? .disabled }
     var provider: ChannelProvider { ChannelProvider.of(type) }

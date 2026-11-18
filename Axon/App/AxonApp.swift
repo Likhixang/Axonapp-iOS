@@ -129,6 +129,7 @@ extension AppDestination {
         case .playground: PlaygroundView()
         case .guide: ConnectGuideView()
         case .users: UsersView()
+        case .roles: RolesView()
         case .projects: ProjectsView()
         }
     }

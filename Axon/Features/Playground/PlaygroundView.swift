@@ -15,22 +15,41 @@ final class PlaygroundModel {
     var messages: [Message] = []
     var input = ""
     var options = PlaygroundOptions(model: "")
-    var availableModels: [String] = []
+    var gatewayModels: [String] = []
+    var channels: [ChannelOption] = []
     var modelsError: String?
+
+    /// The model menu lists the chosen channel's models, or every gateway model when no channel is chosen.
+    var availableModels: [String] {
+        ChannelOption.playgroundModels(channelID: options.channelID, channels: channels, fallback: gatewayModels)
+    }
+
+    var selectedChannel: ChannelOption? {
+        guard let id = options.channelID else { return nil }
+        return channels.first { $0.numericID == id }
+    }
+
+    func selectChannel(_ id: Int?) {
+        options.channelID = id
+        options.model = ChannelOption.resolveModel(options.model, in: availableModels)
+    }
     private(set) var isSending = false
     private var task: Task<Void, Never>?
 
     func loadModels(_ service: AxonService) async {
+        // Channels are optional: a key without channel read access still chats through the gateway.
+        channels = ChannelOption.playgroundChannels((try? await service.channelOptions()) ?? [])
+        if options.channelID != nil && selectedChannel == nil { options.channelID = nil }
         do {
-            let models = try await service.playgroundModels()
-            availableModels = models
+            gatewayModels = try await service.playgroundModels()
             modelsError = nil
-            if options.model.isEmpty || !models.contains(options.model) {
-                options.model = UserDefaults.standard.string(forKey: "axon.playground.model").flatMap { models.contains($0) ? $0 : nil }
-                    ?? models.first ?? ""
-            }
         } catch {
             modelsError = error.localizedDescription
+        }
+        let models = availableModels
+        if options.model.isEmpty || !models.contains(options.model) {
+            options.model = UserDefaults.standard.string(forKey: "axon.playground.model").flatMap { models.contains($0) ? $0 : nil }
+                ?? models.first ?? ""
         }
     }
 
@@ -145,7 +164,7 @@ struct PlaygroundView: View {
             }
         }
         .sheet(isPresented: $showSettings) {
-            PlaygroundSettingsSheet(options: $model.options)
+            PlaygroundSettingsSheet(options: $model.options, channels: model.channels, gatewayModels: model.gatewayModels)
                 .presentationDetents([.medium, .large])
         }
         .task(id: session.selectedProjectID) {
@@ -161,11 +180,25 @@ struct PlaygroundView: View {
             Picker("模型", selection: $model.options.model) {
                 ForEach(model.availableModels, id: \.self) { Text($0).tag($0) }
             }
+            if !model.channels.isEmpty {
+                Picker("渠道", selection: Binding(get: { model.options.channelID }, set: { model.selectChannel($0) })) {
+                    Text("自动（负载均衡）").tag(Int?.none)
+                    ForEach(model.channels) { channel in
+                        Text(channel.name).tag(channel.numericID)
+                    }
+                }
+                .pickerStyle(.menu)
+            }
         } label: {
             HStack(spacing: 4) {
-                Text(model.options.model.isEmpty ? "选择模型" : model.options.model)
-                    .font(.subheadline.weight(.semibold).monospaced())
-                    .lineLimit(1)
+                VStack(spacing: 0) {
+                    Text(model.options.model.isEmpty ? "选择模型" : model.options.model)
+                        .font(.subheadline.weight(.semibold).monospaced())
+                        .lineLimit(1)
+                    if let channel = model.selectedChannel {
+                        Text(channel.name).font(.caption2).foregroundStyle(.secondary).lineLimit(1)
+                    }
+                }
                 Image(systemName: "chevron.down").font(.caption2.weight(.bold))
             }
             .foregroundStyle(.primary)
@@ -291,12 +324,14 @@ private struct TypingIndicator: View {
 
 private struct PlaygroundSettingsSheet: View {
     @Binding var options: PlaygroundOptions
+    var channels: [ChannelOption] = []
+    var gatewayModels: [String] = []
     @Environment(\.dismiss) private var dismiss
     @State private var useTemperature = false
     @State private var temperature = 0.7
     @State private var useMaxTokens = false
     @State private var maxTokens = 2048
-    @State private var channelText = ""
+    @State private var channelID: Int?
 
     var body: some View {
         NavigationStack {
@@ -319,12 +354,21 @@ private struct PlaygroundSettingsSheet: View {
                     }
                 }
                 Section {
-                    TextField("渠道数字 ID（可选）", text: $channelText)
-                        .keyboardType(.numberPad)
+                    Picker("渠道", selection: $channelID) {
+                        Text("自动（负载均衡）").tag(Int?.none)
+                        ForEach(channels) { channel in
+                            Text(channel.name).tag(channel.numericID)
+                        }
+                    }
+                    .pickerStyle(.navigationLink)
+                    Picker("模型", selection: $options.model) {
+                        ForEach(sheetModels, id: \.self) { Text($0).tag($0) }
+                    }
+                    .pickerStyle(.navigationLink)
                 } header: {
-                    Text("指定渠道")
+                    Text("渠道与模型")
                 } footer: {
-                    Text("留空时由网关按负载均衡策略选择渠道。")
+                    Text("选了渠道后只列出这个渠道能用的模型；选“自动”时由网关按负载均衡策略选择渠道。")
                 }
             }
             .navigationTitle("对话设置")
@@ -339,7 +383,10 @@ private struct PlaygroundSettingsSheet: View {
                 temperature = options.temperature ?? 0.7
                 useMaxTokens = options.maxTokens != nil
                 maxTokens = options.maxTokens ?? 2048
-                channelText = options.channelID.map(String.init) ?? ""
+                channelID = options.channelID
+            }
+            .onChange(of: channelID) { _, _ in
+                options.model = ChannelOption.resolveModel(options.model, in: sheetModels)
             }
         }
     }
@@ -347,6 +394,11 @@ private struct PlaygroundSettingsSheet: View {
     private func apply() {
         options.temperature = useTemperature ? temperature : nil
         options.maxTokens = useMaxTokens ? maxTokens : nil
-        options.channelID = Int(channelText.trimmed)
+        options.channelID = channelID
+        options.model = ChannelOption.resolveModel(options.model, in: sheetModels)
+    }
+
+    private var sheetModels: [String] {
+        ChannelOption.playgroundModels(channelID: channelID, channels: channels, fallback: gatewayModels)
     }
 }
