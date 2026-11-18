@@ -150,7 +150,7 @@ struct ChannelFormView: View {
                         allowsCustom: false,
                         emptyMessage: "先添加模型"
                     ) { defaultTestModel = $0 }
-                    TagPickerRow(suggestions: tagSuggestions, isLoading: isLoadingOptions, tags: $tags)
+                    ChannelTagPickerRow(suggestions: tagSuggestions, isLoading: isLoadingOptions, tags: $tags)
                 } footer: {
                     Text("默认测试模型用于测试连接。标签可以从已有渠道的标签里选，也可以新建。")
                 }

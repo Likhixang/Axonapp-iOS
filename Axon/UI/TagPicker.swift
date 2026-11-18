@@ -2,7 +2,7 @@ import SwiftUI
 
 /// Multi-select tag editor: picks from tags already in use (`allChannelTags`) and accepts new ones,
 /// like the web console's tags autocomplete.
-struct TagPickerView: View {
+struct ChannelTagPickerView: View {
     var title = "标签"
     let suggestions: [String]
     var isLoading = false
@@ -77,8 +77,8 @@ struct TagPickerView: View {
     }
 }
 
-/// A form row that shows the chosen tags and opens `TagPickerView`.
-struct TagPickerRow: View {
+/// A form row that shows the chosen tags and opens `ChannelTagPickerView`.
+struct ChannelTagPickerRow: View {
     var title = "标签"
     let suggestions: [String]
     var isLoading = false
@@ -86,7 +86,7 @@ struct TagPickerRow: View {
 
     var body: some View {
         NavigationLink {
-            TagPickerView(title: title, suggestions: suggestions, isLoading: isLoading, tags: $tags)
+            ChannelTagPickerView(title: title, suggestions: suggestions, isLoading: isLoading, tags: $tags)
         } label: {
             LabeledContent(title) {
                 Text(tags.isEmpty ? "未设置" : tags.joined(separator: "、"))

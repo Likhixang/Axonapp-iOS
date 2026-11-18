@@ -380,7 +380,7 @@ struct ProjectProfilesView: View {
                                 Text(profile.channelIDs.isEmpty ? "未选" : "已选 \(profile.channelIDs.count) 个").foregroundStyle(.secondary)
                             }
                         }
-                        TagPickerRow(title: "渠道标签", suggestions: tags, tags: binding.channelTags)
+                        ChannelTagPickerRow(title: "渠道标签", suggestions: tags, tags: binding.channelTags)
                         if !profile.channelTags.isEmpty {
                             ChoicePicker(title: "标签匹配方式", choices: ProfilesDraft.matchModes, selection: binding.matchMode)
                         }
