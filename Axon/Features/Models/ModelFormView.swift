@@ -12,6 +12,8 @@ struct ModelFormView: View {
     @State private var draft = ModelDraft()
     @State private var channels: [ChannelOption] = []
     @State private var modelSuggestions: [String] = []
+    @State private var catalog = ProvidersCatalog.empty
+    @State private var catalogLoading = false
     @State private var isSaving = false
     @State private var errorMessage: String?
     @State private var didLoad = false
@@ -56,17 +58,19 @@ struct ModelFormView: View {
 
     private var identitySection: some View {
         Section {
-            LabeledField("厂商") {
-                TextField("openai、anthropic…", text: $draft.developer)
-                    .textInputAutocapitalization(.never)
-                    .autocorrectionDisabled()
-            }
-            LabeledField("模型 ID") {
-                TextField("gpt-4o", text: $draft.modelID)
-                    .textInputAutocapitalization(.never)
-                    .autocorrectionDisabled()
-                    .font(.body.monospaced())
-            }
+            OptionPickerRow(
+                title: "厂商", value: draft.developer, placeholder: "选择厂商",
+                display: { DeveloperCatalog.label($0) },
+                options: catalog.developerIDs, label: { DeveloperCatalog.label($0) },
+                detail: { $0 == DeveloperCatalog.label($0) ? nil : $0 }
+            ) { draft.selectDeveloper($0, isEditing: existing != nil) }
+            OptionPickerRow(
+                title: "模型 ID", value: draft.modelID, placeholder: "选择或输入模型 ID", monospaced: true,
+                options: catalog.modelIDs(for: draft.developer),
+                detail: { id in catalog.model(developer: draft.developer, id: id)?.displayName ?? catalog.model(developer: draft.developer, id: id)?.name },
+                emptyMessage: draft.developer.isEmpty ? "先选择厂商" : "目录里没有这个厂商的模型，可以直接输入",
+                isLoading: catalogLoading
+            ) { draft.selectModelID($0, catalog: catalog, isEditing: existing != nil) }
             LabeledField("显示名称") { TextField("不填则用模型 ID", text: $draft.name) }
             Picker("类型", selection: $draft.type) {
                 ForEach(ModelType.allCases) { Text($0.label).tag($0.rawValue) }
@@ -75,14 +79,15 @@ struct ModelFormView: View {
                 TextField("不填则用厂商", text: $draft.group)
                     .textInputAutocapitalization(.never)
             }
-            LabeledField("图标") {
-                TextField("图标名，如 OpenAI", text: $draft.icon)
-                    .textInputAutocapitalization(.never)
-                    .autocorrectionDisabled()
-            }
+            OptionPickerRow(title: "图标", value: draft.icon, placeholder: "选择图标",
+                            options: ModelIconCatalog.all, allowsClear: true) { draft.icon = $0 }
             LabeledField("备注") { TextField("可选", text: $draft.remark, axis: .vertical) }
         } header: {
             Text("基本信息")
+        } footer: {
+            if existing == nil {
+                Text("从目录选模型 ID 会自动填好名称、分组、能力、价格和上下文长度。")
+            }
         }
     }
 
@@ -222,9 +227,13 @@ struct ModelFormView: View {
             draft = ModelDraft(model: existing)
             if let fresh = try? await service.model(id: existing.id) { draft = ModelDraft(model: fresh) }
         }
+        catalogLoading = true
         async let channelList = try? service.channelOptions()
         async let suggestions = try? service.modelIDSuggestions()
+        async let providers = try? service.providersCatalog()
         channels = await channelList ?? []
+        catalog = await providers ?? .empty
+        catalogLoading = false
         var ids = await suggestions ?? []
         for channel in channels { ids.append(contentsOf: channel.supportedModels ?? []) }
         var seen = Set<String>()
@@ -308,14 +317,7 @@ struct AssociationEditorView: View {
             if let kind = association.kind {
                 Section {
                     if kind.usesChannel {
-                        Picker("渠道", selection: Binding(
-                            get: { association.channelID ?? 0 },
-                            set: { association.update(channel: $0) })) {
-                            Text("请选择").tag(0)
-                            ForEach(channels) { channel in
-                                if let id = channel.numericID { Text(channel.name).tag(id) }
-                            }
-                        }
+                        ChannelPickerRow(channels: channels, selection: association.channelID) { association.update(channel: $0) }
                     }
                     if kind.usesTags {
                         NavigationLink {
@@ -334,25 +336,11 @@ struct AssociationEditorView: View {
                                 .autocorrectionDisabled()
                         }
                     } else {
-                        LabeledField("上游模型") {
-                            TextField("模型 ID", text: Binding(get: { association.modelValue }, set: { association.update(model: $0) }))
-                                .font(.body.monospaced())
-                                .textInputAutocapitalization(.never)
-                                .autocorrectionDisabled()
-                        }
-                        let matches = suggestions(for: association.modelValue)
-                        if !matches.isEmpty {
-                            ScrollView(.horizontal, showsIndicators: false) {
-                                HStack {
-                                    ForEach(matches, id: \.self) { id in
-                                        Button(id) { association.update(model: id) }
-                                            .font(.caption.monospaced())
-                                            .adaptiveButtonStyle()
-                                            .controlSize(.small)
-                                    }
-                                }
-                            }
-                        }
+                        OptionPickerRow(
+                            title: "上游模型", value: association.modelValue, placeholder: "选择或输入模型",
+                            monospaced: true, options: modelOptions(for: kind),
+                            emptyMessage: kind == .channelModel ? "先选择渠道，这里会列出该渠道的模型" : "服务器没有返回模型"
+                        ) { association.update(model: $0) }
                     }
                 } header: {
                     Text("匹配")
@@ -401,28 +389,18 @@ struct AssociationEditorView: View {
                     }
                 }
 
-                if association.hasCondition {
-                    Section {
-                        Text(association.when?.prettyPrinted ?? "")
-                            .font(.caption.monospaced())
-                            .textSelection(.enabled)
-                        Button("清除条件", role: .destructive) { association.when = nil }
-                    } header: {
-                        Text("生效条件")
-                    } footer: {
-                        Text("条件在网页端编辑，这里会原样保留。")
-                    }
-                }
+                ConditionEditorSections(condition: $association.condition)
             }
+        }
+        .onAppear {
+            if association.conditionDraft == nil { association.conditionDraft = AssociationWhen(association.when) }
         }
         .navigationTitle("关联")
         .navigationBarTitleDisplayMode(.inline)
     }
 
-    private func suggestions(for text: String) -> [String] {
-        let q = text.trimmed.lowercased()
-        guard !q.isEmpty else { return Array(modelSuggestions.prefix(12)) }
-        return Array(modelSuggestions.filter { $0.lowercased().contains(q) && $0.lowercased() != q }.prefix(12))
+    private func modelOptions(for kind: AssociationKind) -> [String] {
+        ChannelOption.associationModelOptions(kind: kind, channelID: association.channelID, channels: channels, allModels: modelSuggestions)
     }
 
     private func excludeSummary(_ rule: ExcludeAssociation) -> String {

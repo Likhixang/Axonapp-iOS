@@ -147,8 +147,10 @@ struct ModelAssociation: Codable, Hashable, Sendable, Identifiable {
     var type: String
     var priority: Int?
     var disabled: Bool?
-    /// Conditional routing (`when`) is kept verbatim; the app shows it but does not edit it.
+    /// Conditional routing (`when`), edited through `condition`.
     var when: JSONValue?
+    /// The condition being edited, kept so incomplete rows survive until they are filled in. Not sent.
+    var conditionDraft: AssociationWhen?
     var channelModel: ChannelModelAssociation?
     var channelRegex: ChannelRegexAssociation?
     var regex: RegexAssociation?
@@ -302,6 +304,7 @@ struct ModelAssociation: Codable, Hashable, Sendable, Identifiable {
     /// Returns a problem description, or nil when the association can be saved.
     var validationError: String? {
         guard let kind else { return nil }
+        if let error = conditionDraft?.validationError { return "条件：" + error }
         if kind.usesChannel && (channelID ?? 0) <= 0 { return "请选择渠道" }
         if kind.usesTags && tagsValue.isEmpty { return "请填写至少一个渠道标签" }
         if kind.usesPattern {
@@ -329,10 +332,19 @@ struct ModelAssociation: Codable, Hashable, Sendable, Identifiable {
         lhs.localID == rhs.localID && lhs.type == rhs.type && lhs.priority == rhs.priority && lhs.disabled == rhs.disabled
             && lhs.when == rhs.when && lhs.channelModel == rhs.channelModel && lhs.channelRegex == rhs.channelRegex
             && lhs.regex == rhs.regex && lhs.modelId == rhs.modelId && lhs.channelTagsModel == rhs.channelTagsModel
-            && lhs.channelTagsRegex == rhs.channelTagsRegex
+            && lhs.channelTagsRegex == rhs.channelTagsRegex && lhs.conditionDraft == rhs.conditionDraft
     }
 
     func hash(into hasher: inout Hasher) { hasher.combine(localID) }
+
+    /// The condition editor's state: the draft while editing, else what `when` holds.
+    var condition: AssociationWhen {
+        get { conditionDraft ?? AssociationWhen(when) }
+        set {
+            conditionDraft = newValue
+            when = newValue.json
+        }
+    }
 }
 
 struct ModelSettings: Codable, Hashable, Sendable {
@@ -712,6 +724,7 @@ struct ChannelOption: Decodable, Hashable, Sendable, Identifiable {
     let status: String
     let tags: [String]?
     let supportedModels: [String]?
+    var allModelEntries: [ChannelModelEntry]? = nil
 
     var numericID: Int? { GUID.numeric(id) }
 

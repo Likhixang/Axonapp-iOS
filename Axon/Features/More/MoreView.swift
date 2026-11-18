@@ -291,10 +291,15 @@ struct UsersView: View {
     @State private var query = ""
     @State private var search = ""
     @State private var toast: Toast?
+    @State private var showCreate = false
+    @State private var editingID: EditingID?
+
+    private struct EditingID: Identifiable { let id: String }
 
     var body: some View {
         List {
             ForEach(loader.items) { user in
+                Button { editingID = EditingID(id: user.id) } label: {
                 HStack(spacing: 12) {
                     Text(String(user.displayName.prefix(1)).uppercased())
                         .font(.headline)
@@ -310,6 +315,8 @@ struct UsersView: View {
                     Spacer()
                     if !user.isActive { StatusBadge("已停用", color: Theme.warning) }
                 }
+                .foregroundStyle(.primary)
+                }
                 .swipeActions {
                     if !user.isOwner {
                         Button(user.isActive ? "停用" : "启用") { Task { await toggle(user) } }
@@ -322,6 +329,13 @@ struct UsersView: View {
         }
         .overlay { ListStateOverlay(loader: loader, emptyTitle: "没有用户", emptyImage: "person.2") }
         .navigationTitle("用户")
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                Button { showCreate = true } label: { Image(systemName: "plus") }
+            }
+        }
+        .sheet(isPresented: $showCreate) { UserFormView(userID: nil) { Task { await loader.reload() } } }
+        .sheet(item: $editingID) { item in UserFormView(userID: item.id) { Task { await loader.reload() } } }
         .searchable(text: $query, prompt: "搜索邮箱或姓名")
         .onSubmit(of: .search) { search = query }
         .onChange(of: query) { _, value in if value.isEmpty { search = "" } }
@@ -353,6 +367,7 @@ struct ProjectsView: View {
     @State private var newName = ""
     @State private var newDescription = ""
     @State private var toast: Toast?
+    @State private var profilesProject: Project?
 
     var body: some View {
         List {
@@ -369,7 +384,15 @@ struct ProjectsView: View {
                     if let description = project.description?.nilIfBlank {
                         Text(description).font(.caption).foregroundStyle(.secondary).lineLimit(2)
                     }
+                    if let active = project.profiles?.activeProfile.nilIfBlank {
+                        Text("渠道访问配置：\(active)").font(.caption).foregroundStyle(.secondary)
+                    }
                     Text("创建于 \(Fmt.dateTime(project.createdAt))").font(.caption2).foregroundStyle(.tertiary)
+                }
+                .contentShape(Rectangle())
+                .onTapGesture { profilesProject = project }
+                .swipeActions(edge: .leading) {
+                    Button("渠道配置") { profilesProject = project }.tint(Theme.accent)
                 }
                 .swipeActions {
                     Button(project.isActive ? "归档" : "恢复") { Task { await toggle(project) } }
@@ -385,6 +408,9 @@ struct ProjectsView: View {
             ToolbarItem(placement: .topBarTrailing) {
                 Button { showCreate = true } label: { Image(systemName: "plus") }
             }
+        }
+        .sheet(item: $profilesProject) { project in
+            ProjectProfilesView(project: project) { _ in Task { await loader.reload() } }
         }
         .alert("新建项目", isPresented: $showCreate) {
             TextField("名称", text: $newName)
